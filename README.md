@@ -8,7 +8,20 @@ tool shows what that money buys in each slot, including the odometer reading the
 budget implies. Lock one car per slot, then send it to someone as a challenge:
 same budget, same slots, beat it.
 
-**Status:** specification only. No implementation yet.
+**Status:** Phase 1 built. The math, the catalog, and the allocation mechanic
+work end to end. No detail modal, no share loop, no photography yet.
+
+```bash
+npm install
+npm run dev        # development server
+npm test           # 63 tests: pricing, matching, catalog integrity, allocation
+npm run build      # validates the catalog, typechecks, builds
+npm run preview    # then: node scripts/audit.mjs   (browser accessibility audit)
+```
+
+`npm run catalog` regenerates `src/data/generated/*.json` from the authored
+records in `src/data/vehicles/`. It runs automatically before test and build,
+and a record that fails schema validation fails the build.
 
 ---
 

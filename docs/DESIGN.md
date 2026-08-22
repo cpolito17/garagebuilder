@@ -323,6 +323,11 @@ Translucent chrome, per `apple-design` section 12. Content scrolls under it.
 
 - Applied to the budget bar and the slot rail (both fixed) and the modal scrim.
   **Never to a scrolling container.**
+- **Do not hand-write the `-webkit-` prefix.** Declaring both the prefixed and
+  unprefixed property made Lightning CSS keep only the prefixed one, and the
+  blur silently never applied in Chromium. Write `backdrop-filter` alone and
+  let the build add prefixes. Verified in a browser, not by reading the source:
+  a computed style of `none` on the header is the only way this shows up.
 - **Scroll edge, not a divider.** Where content meets fixed chrome, fade a short
   gradient mask instead of drawing a hard 1px line. Only where chrome actually
   overlaps content.
@@ -537,10 +542,21 @@ Requirements, not aspirations. Every one is in the pre-flight checklist.
 | Initial JS, gzipped | < 140KB |
 | Time to first result render | < 400ms after budget entry |
 
+**Keep the schema library out of the client.** Catalog records are authored in
+TypeScript, validated against the Zod schema at build time by
+`scripts/build-catalog.ts`, and emitted as JSON. The app imports the JSON.
+Shipping Zod to validate data that was already proved correct at build time
+cost 25 kB gzipped on its own.
+
 **Split the catalog.** A slim index carrying only the fields used for matching
-and card rendering loads upfront. Full records, notes, packages, and gallery
-assets load per vehicle when a modal opens. Shipping 250 full records upfront
-would put roughly 400KB of JSON in the critical path to show twelve cards.
+and card rendering loads upfront. Prose the detail view needs loads on demand.
+Cautions stay in the slim index because they render on the card. Together with
+the Zod removal this took the catalog chunk from 35.65 kB gzipped to 10.04 kB.
+
+Measured after Phase 1: react 57.15, motion 46.21, app 25.94, catalog 10.04,
+CSS 6.20. Initial JS totals 139.70 kB gzipped, inside the 140 kB budget with
+almost nothing to spare, so Wave 2 of the catalog must not land in the eager
+chunk without re-measuring.
 
 **Reserve image geometry** with fixed aspect ratios before load. CLS on a
 result grid is unforgiving.
@@ -580,6 +596,14 @@ Beyond the general AI-tell list, these are specifically live risks here.
 - **Emoji in UI text.**
 
 ---
+
+## 11a. Render one layout, not both
+
+Mobile and desktop trees must not both render with one hidden by CSS. Doing
+that duplicates every slot in the DOM: doubled render work, doubled result
+matching, and duplicate element ids, which is an accessibility defect because a
+label then points at two controls. Switch on a `matchMedia` subscription and
+render one.
 
 ## 12. Pre-flight checklist
 
@@ -629,6 +653,8 @@ the work is not finished.
 - [ ] Motion components are client leaves with `'use client'`
 
 **Accessibility and performance**
+- [ ] Audit run in a real browser in both themes (`node scripts/audit.mjs`),
+      not inferred from source
 - [ ] Reduced motion, reduced transparency, and increased contrast all handled
 - [ ] Full keyboard path end to end, visible focus everywhere
 - [ ] 44px minimum touch targets, all of them

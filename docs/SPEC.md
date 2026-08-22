@@ -130,6 +130,17 @@ bar enters an over-budget state, shows the overage in dollars, and the affected
 slots keep showing results. A slider that silently refuses to move reads as
 broken; one that lets you go over and tells you reads as a tool.
 
+**Underspending is allowed too.** With two or more fluid slots the others
+absorb whatever one slot gives up, so the total holds at the budget. With a
+single slot there is nothing to absorb it, and dragging down simply spends
+less. That is a real choice, not an error, and the allocation reports it as
+unspent dollars rather than snapping back.
+
+**The books always balance to the dollar.** Allocation seats every slot at its
+floor first and apportions the surplus by largest remainder. Naive per-slot
+rounding drifted the total by $371 across five slots, and a naive floor clamp
+broke the sum outright.
+
 **Default role weights** for first allocation:
 
 | Role | Weight |
@@ -147,6 +158,25 @@ nothing more.
 split across all fluid slots to maximize total ranking score under the budget
 constraint. It is the fastest path to a good garage and it re-runs cleanly after
 any pin.
+
+A plain greedy marginal allocation does not work, and the reason is worth
+recording. A slot's value function is not concave: an off-road slot is worth
+nothing at all until it clears the cheapest 4x4's price floor, then jumps.
+Marginal-gain greedy sees zero gain from every step below that cliff, never
+invests, and starves the slot permanently. Measured directly on a four slot
+$55,000 garage: sports and commuter were funded to $20k and $28k while family
+and off-road were left at $3,282 and $2,836 with no matches at all.
+
+The shipped solver seats every slot at its entry price first, cheapest first so
+a limited pot funds as many working slots as it can, then distributes the rest
+by gain per dollar over a lookahead window rather than a single step. On the
+same garage it raised total pick quality from 2.43 to 3.25 and funded every
+slot.
+
+When the pot genuinely cannot fund every slot the tool says so rather than
+leaving a silent gap. A $25,000 three car garage with sports, commuter and
+family slots needs $31,750 to give all three something, and the header states
+that plainly.
 
 ### 4.3 The mileage control
 
@@ -167,10 +197,15 @@ mileage that budget actually buys:
 Every result card states its implied odometer next to its price, because the
 odometer is half the offer.
 
-Above 100,000 miles, cards for vehicles carrying a `knownIssues` entry whose
-`onsetMiles` falls at or below the implied odometer show a caution marker. The
-marker is factual and expands to the issue, the mileage window, and the typical
-cost. It never blocks selection.
+A card shows a caution marker when the implied odometer has passed the onset of
+any documented issue. There is no arbitrary mileage gate: an issue that starts
+at 60,000 miles is exactly as relevant when buying at 80,000 as one starting at
+120,000 is when buying at 140,000, and an earlier draft's 100,000 mile
+threshold would have hidden the first case. The marker is factual and expands
+to the issue, its mileage window, and the typical cost. It never blocks
+selection.
+
+Cautions are ordered by cost, so the expensive one is read first.
 
 ### 4.4 Filters
 
@@ -183,6 +218,19 @@ Every filter shows its result count impact before it is applied where that is
 cheap to compute, so the user does not filter themselves into an empty list
 blind. An empty result set renders a designed empty state naming the specific
 constraint that eliminated the last candidate, with a control to relax it.
+
+The empty state distinguishes four causes, because they have different fixes:
+
+| Cause | What it says |
+| --- | --- |
+| Mileage ceiling | Names the closest vehicle and the odometer it needs, with a button that raises the limit to exactly that |
+| Below every price floor | Names the closest vehicle and how much more it needs at any odometer |
+| Odometer implausible for the age | Says the budget is too low for this slot |
+| Filter combination | Names the pairing to relax |
+
+A budget sitting exactly on a vehicle's price floor has a shortfall of zero, so
+the shortfall message never promises below one $500 step. "Needs about $0 more"
+is not a sentence.
 
 ### 4.5 Result card
 
@@ -339,16 +387,22 @@ testimonials, no logo wall, no pricing table. There is nothing to sell.
 
 Ordered so the riskiest thing is proved first.
 
-**Phase 1 - The math and the mechanic**
+**Phase 1 - The math and the mechanic. Built.**
 - Catalog schema, Zod validation, 60 records (Wave 1).
 - Price curve and the mileage inversion as pure, unit-tested functions.
 - Budget bar with fluid and pinned slots, mobile layout.
 - Result list, star and lock, redistribution.
 - No modal, no share, typographic tiles for all vehicles.
 
-The goal of Phase 1 is to answer one question: does watching the budget squeeze
-when you star a car feel good. If it does not, the concept needs rework and
-that is worth knowing in week one.
+Delivered with 63 tests, a mechanical accessibility audit, and both themes
+verified in a browser. One small addition beyond the listed scope: a manual
+transmission toggle, because it exercises the filter plumbing end to end and is
+the single filter an enthusiast reaches for first. Full filters remain Phase 2.
+
+The goal of Phase 1 was to answer one question: does watching the budget
+squeeze when you star a car feel good. It does. Starring a $29,448 GR86 in a
+$50,000 three slot garage visibly pulls the other two columns down and
+re-filters both lists, and the total holds at exactly $50,000.
 
 **Phase 2 - Depth**
 - Detail modal with the price curve chart.

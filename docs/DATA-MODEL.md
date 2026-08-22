@@ -240,7 +240,7 @@ the starting calibration for catalog authoring.
 | Mazda MX-5 (NC) | 13,000 | 5,000 | 0.070 | 85,000 | ~18,000 |
 | Honda Civic Si (10th gen) | 23,500 | 8,000 | 0.080 | 55,000 | ~108,000 |
 | Mercedes-AMG E63 (W212) | 34,000 | 9,500 | 0.175 | 60,000 | ~115,000 |
-| BMW M3 (E90) | 33,000 | 14,000 | 0.090 | 75,000 | ~240,000 (clipped) |
+| BMW M3 (E90) | 33,000 | 14,000 | 0.090 | 75,000 | ~240,000 |
 | Toyota 4Runner (N280) | 31,000 | 11,000 | 0.045 | 95,000 | ~323,000 (clipped) |
 | Porsche 911 (997.1) | 46,000 | 22,000 | 0.130 | 60,000 | out of reach |
 
@@ -249,11 +249,19 @@ Three findings from this calibration that shape the product:
 1. **The mechanic works.** The same $18,000 returns a near-mint MX-5 at 18,000
    miles and a 115,000 mile AMG super-sedan. That contrast is the product.
 
-2. **`plausibleMaxMiles` is load-bearing, not a safety net.** Two of six
-   candidates returned odometers the guard has to clip. Low-decay vehicles
-   asymptote slowly, so the raw equation cheerfully offers a 4Runner at 323,000
-   miles. Without the guard the results list fills with impossible cars. Ship
-   the guard with the equation, not after it.
+2. **`plausibleMaxMiles` is load-bearing, and it is not the same thing as a
+   quality filter.** Low-decay vehicles asymptote slowly, so the raw equation
+   offers a 4Runner at 323,000 miles, which exceeds the hard ceiling and is
+   rejected outright.
+
+   The E90 M3 at 240,000 miles is the more interesting case: an 18 year old car
+   genuinely can have covered that, so the guard passes it. It is not an
+   impossible car, it is a **bad buy**, and those need different answers.
+   Impossible odometers are removed silently. Bad buys are shown with their
+   known issues surfaced, because the user is entitled to see that $18,000
+   technically reaches an M3 and to understand what that particular M3 would
+   cost them afterward. Do not use the plausibility guard to hide cars you
+   disapprove of.
 
 3. **Out of reach is a real and frequent outcome.** The 997.1 has a `floor` of
    $22,000, so no odometer brings it under $18,000. The UI must handle "this
@@ -265,6 +273,27 @@ Round-trip identity holds exactly across the working range:
 `price(milesAffordable(B)) === B` for every B between `floor` and
 `base * lowMileCap`. Outside that range the clamps bind, which is correct
 behavior and must be asserted in tests rather than treated as drift.
+
+### 3.2b A minimum plausible odometer
+
+Added during implementation. `plausibleMaxMiles` has a mirror:
+
+```
+plausibleMinMiles(lastYear) = max(0, (currentYear - lastYear) * 1500)
+```
+
+Without it the curve offers a 1990 Miata at delivery mileage, because
+extrapolating backwards below `baselineMiles` is mathematically fine and
+physically absurd. That is not a bargain, it is a car that does not exist, and
+it ranked first in early testing because it consumed the least budget.
+
+1,500 miles a year is a cherished, garage-kept, second-car life. Below that is a
+museum piece and not what this tool is for. A current-model-year generation
+returns 0, so a new car can still show delivery mileage.
+
+The clamp can push a vehicle back above the slot's mileage ceiling: the budget
+reaches it, but the lowest-mileage example that exists is still over the limit
+the user set. That is reported as `over-ceiling`, not silently dropped.
 
 ### 3.3 Displayed range
 
@@ -339,6 +368,17 @@ score = 0.40 * budgetFit        // how completely it uses the slot budget withou
 $4,000 car in a $30,000 slot is technically a match and is almost never the
 answer the user wants. Underspending is penalized about half as hard as
 overspending, because underspending is at least recoverable.
+
+### Model diversity
+
+Score alone is not enough. Four generations of Miata are four correct answers
+to the same question, and the first build returned exactly that: the top four
+sports results at $18,000 were all MX-5s, which tells the user nothing.
+
+After sorting, the best example of each `make|model` keeps its score and
+subsequent ones are demoted (second to 0.72, third and beyond to 0.55), then
+the list is re-sorted. Breadth first, depth second. Depth is still reachable,
+it just does not crowd out the answer the user has not thought of.
 
 ---
 
@@ -447,7 +487,14 @@ Where `license.redistributable` is true, a photo may be composited into the
 card. Where it is not, the typographic tile is used. Both are designed as
 first-class treatments so the card never looks like it fell back to something.
 
-**Open item, needs a decision before catalog authoring starts:** no image
+**Decided for Phase 1:** typographic tiles ship, no photography. An early
+version reserved a 16:10 image area and filled it with a body-style glyph; on a
+phone that was most of the screen for one card and read as a missing image
+rather than a decision. The shipped treatment is a compact identity band
+(make, model, generation, years, with the glyph as a small mark), which is
+honest about having no photograph and materially denser to read.
+
+**Open item, needs a decision before Phase 4:** no image
 generation tool is available in this environment, so the 250 hero images cannot
 be produced here. The options are (a) source Wikimedia Commons by hand as part
 of catalog authoring, (b) generate a consistent illustrated set elsewhere and
