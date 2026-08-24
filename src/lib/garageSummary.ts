@@ -54,11 +54,11 @@ const ORIGIN: Record<string, string> = {
   Ford: 'US', Chevrolet: 'US', Chrysler: 'US', Ram: 'US', Jeep: 'US', Tesla: 'US',
   Cadillac: 'US', Dodge: 'US', GMC: 'US', Lincoln: 'US', Mercury: 'US', Pontiac: 'US',
   Acura: 'JP', Infiniti: 'JP', Isuzu: 'JP', Mitsubishi: 'JP', Suzuki: 'JP',
-  'Alfa Romeo': 'IT',
+  'Alfa Romeo': 'IT', Ferrari: 'IT', Lamborghini: 'IT',
   'Mercedes-Benz': 'DE', Mini: 'DE',
   Genesis: 'KR', Hyundai: 'KR', Kia: 'KR',
   Volvo: 'SE', Saab: 'SE',
-  Lotus: 'GB', Jaguar: 'GB', 'Land Rover': 'GB',
+  'Aston Martin': 'GB', Lotus: 'GB', Jaguar: 'GB', McLaren: 'GB', 'Rolls-Royce': 'GB',
 };
 
 export function originCountry(make: string): string | undefined {
