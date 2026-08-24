@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CATALOG, PRICES_AS_OF } from './data/catalog';
 import { ROLE_LABEL, type Role } from './data/types';
 import { findMatches, type Filters, type Match } from './lib/matching';
@@ -19,17 +19,51 @@ const DetailModal = lazy(() =>
   import('./components/DetailModal').then((m) => ({ default: m.DetailModal })),
 );
 import { GarageSummary } from './components/GarageSummary';
+import { ChallengeIntro } from './components/ChallengeIntro';
+import { HeadToHead } from './components/HeadToHead';
+import {
+  challengeFrom, readGarageFromLocation, writeGarageToLocation,
+} from './lib/urlState';
+
+/** The share panel pulls in the canvas renderer, which nothing needs until a
+ *  garage is finished. */
+const SharePanel = lazy(() =>
+  import('./components/SharePanel').then((m) => ({ default: m.SharePanel })),
+);
 import { byId } from './data/catalog';
 import { SlotColumn } from './components/SlotColumn';
 import { useIsDesktop } from './hooks/useMediaQuery';
 
+/**
+ * A link that arrives with picks in it is somebody's finished garage, so it
+ * opens as a challenge. A link with no picks is your own saved work, so it
+ * opens as the builder. docs/SPEC.md section 6.2.
+ */
+function bootFromUrl(): { state: GarageState; rival: GarageState | null } {
+  const incoming = readGarageFromLocation();
+  if (!incoming) return { state: initialGarage(50_000, 3), rival: null };
+  const hasPicks = incoming.slots.some((s) => s.pick);
+  return hasPicks ? { state: incoming, rival: incoming } : { state: incoming, rival: null };
+}
+
 export default function App() {
-  const [state, setState] = useState<GarageState>(() => initialGarage(50_000, 3));
+  const boot = useRef(bootFromUrl());
+  const [state, setState] = useState<GarageState>(boot.current.state);
+  const [rival, setRival] = useState<GarageState | null>(boot.current.rival);
+  const [challengeAccepted, setChallengeAccepted] = useState(false);
   const [active, setActive] = useState(0);
   const isDesktop = useIsDesktop();
   const [detail, setDetail] = useState<{ match: Match; slotId: string; origin: DOMRect } | null>(null);
 
   const alloc = useMemo(() => allocate(state), [state]);
+
+  // Written with replaceState and debounced, so the back button still means
+  // "back" rather than "undo one slider tick".
+  useEffect(() => {
+    if (rival && !challengeAccepted) return; // do not overwrite the incoming link yet
+    const t = setTimeout(() => writeGarageToLocation(state), 400);
+    return () => clearTimeout(t);
+  }, [state, rival, challengeAccepted]);
 
   // Slots with nothing at their current allocation. Reported once at the top
   // rather than leaving the user to work out why a column is empty.
@@ -61,6 +95,16 @@ export default function App() {
 
   return (
     <div className="min-h-[100dvh] bg-[--bg-base]">
+      {rival && !challengeAccepted && (
+        <div className="mx-auto max-w-[1400px] px-4 pt-4">
+          <ChallengeIntro
+            rival={rival}
+            onAccept={() => { setState(challengeFrom(rival)); setChallengeAccepted(true); }}
+            onDismiss={() => { setRival(null); setChallengeAccepted(true); }}
+          />
+        </div>
+      )}
+
       <BudgetBar
         state={state}
         alloc={alloc}
@@ -155,12 +199,18 @@ export default function App() {
         )}
 
         {complete && (
-          <div className="mt-8">
+          <div className="mt-8 flex flex-col gap-5">
             <GarageSummary
               picks={picks.filter(Boolean) as NonNullable<(typeof picks)[number]>[]}
               spend={alloc.total}
               budget={state.budget}
             />
+            {rival && challengeAccepted && (
+              <HeadToHead rival={rival} mine={state} mineSpend={alloc.total} />
+            )}
+            <Suspense fallback={null}>
+              <SharePanel state={state} picks={picks} spend={alloc.total} />
+            </Suspense>
           </div>
         )}
 
