@@ -11,3 +11,4 @@ src/data/generated/*
 # Vehicle photography is reproducible from src/data/generated/images.json.
 # 250 vehicles of it is ~100MB of binaries that do not belong in git.
 public/vehicles/
+tsconfig.tsbuildinfo
