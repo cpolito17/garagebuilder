@@ -78,7 +78,9 @@ export const ResultCard = memo(function ResultCard({
           <VehicleTile vehicle={v} withPhoto={!!hero} />
         </div>
 
-        <div className="relative z-10 flex flex-col gap-2.5 p-3">
+        {/* pointer-events-none so the card's dead space falls through to the
+            detail overlay beneath. Interactive children opt back in. */}
+        <div className="pointer-events-none relative z-10 flex flex-col gap-2.5 p-3">
           <div className="pointer-events-none flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="num t-h2 text-[--text-primary]">
@@ -115,7 +117,7 @@ export const ResultCard = memo(function ResultCard({
                 type="button"
                 onClick={() => setShowCautions((s) => !s)}
                 aria-expanded={showCautions}
-                className="flex min-h-11 w-full items-center gap-2 rounded-[10px] px-2.5 py-2 text-left t-small"
+                className="pointer-events-auto flex min-h-11 w-full items-center gap-2 rounded-[10px] px-2.5 py-2 text-left t-small"
                 style={{ background: 'var(--caution-wash)', color: 'var(--caution)' }}
               >
                 <Warning size={14} weight="regular" className="shrink-0" />
@@ -129,7 +131,7 @@ export const ResultCard = memo(function ResultCard({
               </button>
 
               {showCautions && (
-                <ul className="mt-2 flex flex-col gap-2">
+                <ul className="pointer-events-auto mt-2 flex flex-col gap-2">
                   {cautions.map((c) => (
                     <li key={c.text} className="t-small text-[--text-secondary]">
                       <span className="text-[--text-primary]">{c.text}.</span>{' '}

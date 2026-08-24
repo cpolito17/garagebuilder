@@ -404,24 +404,38 @@ squeeze when you star a car feel good. It does. Starring a $29,448 GR86 in a
 $50,000 three slot garage visibly pulls the other two columns down and
 re-filters both lists, and the total holds at exactly $50,000.
 
-**Phase 2 - Depth**
+**Phase 2 - Depth. Built.**
 - Detail modal with the price curve chart.
 - Filters in full, role presets, empty and error states.
 - Garage summary with coverage and overlap.
-- Catalog to 130 records (Wave 2).
+- Catalog to 135 records (Wave 2), every role at twelve or more vehicles
+  across three price tiers.
 
-**Phase 3 - The loop**
-- URL encoding and restore.
+Two catalog gaps were found by the coverage checks rather than by inspection:
+the family role had nothing under $12,000 and the off-road role had no cheap
+4x4 at all. Both are now filled, because someone on a small budget who needs to
+move people, or who wants a Cherokee XJ, is exactly who this tool is for.
+
+**Phase 3 - The loop. Built.**
+- URL encoding and restore. A three car garage is 305 characters.
 - Share card rendering on canvas, both aspect ratios.
 - Challenge surface and inherited constraints.
-- Head to head view and the second card.
+- Head to head view.
 
-**Phase 4 - Polish and scale**
-- Catalog to 250 (Waves 3 and 4).
-- Real photography, licensing page.
-- Outbound search links to listings sites.
-- OG Worker, if the tool is being shared.
-- Landing page, if the tool goes public.
+Verified end to end in a fresh browser context: link copied, opened cold,
+presented as a challenge, budget and slot roles inherited, picks cleared, head
+to head rendered.
+
+**Phase 4 - Polish and scale. Partly built.**
+- Real photography system, licensing page: built. The photographs themselves
+  are fetched by `npm run images` and could not be downloaded in the build
+  environment, whose network policy blocks every image host.
+- Outbound search links to listings sites: built, in the detail view.
+- Catalog to 250: not done. 135 records is where it stands, and the payload
+  budget in DESIGN.md section 10 says what has to change before 250 ships.
+- OG Worker: not built. Still the first thing to add if the tool gets used,
+  because a static site cannot serve per-garage link previews.
+- Landing page: not built, and only worth building if the tool goes public.
 
 ---
 
@@ -441,11 +455,13 @@ Explicitly not building, in any phase, without a new decision:
 
 ## 10. Open questions
 
-1. **Images.** No image generation is available in this environment, so 250
-   hero images cannot be produced as part of the build here. Recommendation is
-   to ship typographic tiles through Phase 3 and source photography in Phase 4.
-   Needs a decision before catalog authoring starts. Details in
-   `DATA-MODEL.md` section 7.
+1. **Images.** Resolved in design, blocked in execution. The photography system
+   is built: a manifest with per-file licence and author, a fetcher that filters
+   Commons by licence and generation, attribution in the detail view and on a
+   credits page, and a typographic fallback that is a designed state rather
+   than a gap. No photographs could be fetched here because the build
+   environment's network policy denies every image host. Run `npm run images`
+   somewhere with network access. Details in `DATA-MODEL.md` section 7.
 2. **Reliability index derivation.** Consumer Reports and J.D. Power data are
    licensed and cannot be republished. The index has to come from free inputs
    or be authored editorially and labeled as such.

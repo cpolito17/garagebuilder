@@ -137,6 +137,14 @@
 html {
   -webkit-text-size-adjust: 100%;
   scrollbar-gutter: stable;
+  /* The budget bar is sticky, so anything scrolled to must clear it or it
+     lands underneath and cannot be clicked. */
+  scroll-padding-top: 190px;
+}
+
+article,
+section {
+  scroll-margin-top: 190px;
 }
 
 body {

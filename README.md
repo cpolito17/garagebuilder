@@ -8,15 +8,27 @@ tool shows what that money buys in each slot, including the odometer reading the
 budget implies. Lock one car per slot, then send it to someone as a challenge:
 same budget, same slots, beat it.
 
-**Status:** Phase 1 built. The math, the catalog, and the allocation mechanic
-work end to end. No detail modal, no share loop, no photography yet.
+**Status:** Phases 1 to 3 built and Phase 4 mostly built. The math, the
+catalog, the allocation mechanic, the detail view, the garage summary and the
+whole share and challenge loop work end to end.
+
+Photographs are the one thing missing, and only because the build environment's
+network policy blocks every image host. The system around them is complete: run
+`npm run images` where there is network access and they appear. Until then every
+vehicle renders its typographic identity band, which is a designed state.
 
 ```bash
 npm install
-npm run dev        # development server
-npm test           # 63 tests: pricing, matching, catalog integrity, allocation
-npm run build      # validates the catalog, typechecks, builds
-npm run preview    # then: node scripts/audit.mjs   (browser accessibility audit)
+npm run dev          # development server
+npm test             # 132 tests
+npm run build        # validates the catalog, typechecks, builds
+npm run preview      # then, against the running preview:
+                     #   node scripts/audit.mjs   accessibility audit, both themes
+                     #   node scripts/smoke.mjs   end to end interaction check
+
+npm run images       # fetch vehicle photography from Wikimedia Commons
+npm run coverage     # role and price-tier coverage report for the catalog
+npm run placeholders # flat test patterns, to check photo layout without network
 ```
 
 `npm run catalog` regenerates `src/data/generated/*.json` from the authored

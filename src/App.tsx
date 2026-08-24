@@ -20,6 +20,7 @@ const DetailModal = lazy(() =>
 );
 import { GarageSummary } from './components/GarageSummary';
 import { ChallengeIntro } from './components/ChallengeIntro';
+import { LicencesPage } from './components/LicencesPage';
 import { HeadToHead } from './components/HeadToHead';
 import {
   challengeFrom, readGarageFromLocation, writeGarageToLocation,
@@ -51,6 +52,13 @@ export default function App() {
   const [state, setState] = useState<GarageState>(boot.current.state);
   const [rival, setRival] = useState<GarageState | null>(boot.current.rival);
   const [challengeAccepted, setChallengeAccepted] = useState(false);
+  const [route, setRoute] = useState(() => window.location.hash);
+
+  useEffect(() => {
+    const onHash = () => setRoute(window.location.hash);
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
   const [active, setActive] = useState(0);
   const isDesktop = useIsDesktop();
   const [detail, setDetail] = useState<{ match: Match; slotId: string; origin: DOMRect } | null>(null);
@@ -92,6 +100,14 @@ export default function App() {
   const complete = picks.every(Boolean) && picks.length > 0;
 
   const activeSlot = state.slots[Math.min(active, state.slots.length - 1)];
+
+  if (route === '#credits') {
+    return (
+      <div className="min-h-[100dvh] bg-[--bg-base]">
+        <LicencesPage onBack={() => { window.location.hash = ''; setRoute(''); }} />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[100dvh] bg-[--bg-base]">
@@ -223,6 +239,12 @@ export default function App() {
             Budget means purchase price only. It does not include tax, title, registration,
             insurance, or running costs.
           </p>
+          <a
+            href="#credits"
+            className="inline-flex min-h-11 items-center self-start t-small text-[--text-tertiary] underline"
+          >
+            Image credits and licences
+          </a>
         </footer>
       </main>
 

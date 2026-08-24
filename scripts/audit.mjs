@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const URL = 'http://127.0.0.1:4179/';
+const URL = 'http://127.0.0.1:4195/';
 const fails = [], warns = [], passes = [];
 const ok = (m) => passes.push(m);
 const bad = (m) => fails.push(m);
@@ -133,6 +133,71 @@ for (const scheme of ['light', 'dark']) {
   ok(`[${scheme}] saturated colours painted: ${hues.join(' | ') || 'none'}`);
 
   await ctx.close();
+}
+
+// --- the surfaces added after Phase 1, which the default view does not cover
+{
+  const c = await browser.newContext({ viewport: { width: 1440, height: 1100 } });
+  const pg = await c.newPage();
+  const surfaceFails = [];
+
+  const checkTargets = async (label) => {
+    const small = await pg.evaluate(() => {
+      const out = [];
+      for (const el of document.querySelectorAll('button,[role="slider"],input,select,a')) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 && r.height === 0) continue;
+        const lbl = el.closest('label');
+        const eff = lbl ? lbl.getBoundingClientRect() : r;
+        if (Math.max(r.height, eff.height) < 44) {
+          out.push(`${el.tagName}${el.getAttribute('aria-label') ? `[${el.getAttribute('aria-label')}]` : ''} ${Math.round(r.width)}x${Math.round(r.height)}`);
+        }
+      }
+      return out;
+    });
+    if (small.length) surfaceFails.push(`${label}: targets under 44px: ${small.join(', ')}`);
+    const dashes = await pg.evaluate(() => ['\u2014', '\u2013'].filter((d) => document.body.innerText.includes(d)));
+    if (dashes.length) surfaceFails.push(`${label}: banned dashes in copy`);
+  };
+
+  await pg.goto(URL, { waitUntil: 'networkidle' });
+  await pg.waitForTimeout(300);
+
+  await pg.locator('button:has-text("Filters")').first().click();
+  await pg.waitForTimeout(300);
+  await checkTargets('filters open');
+  await pg.locator('button:has-text("Filters")').first().click();
+
+  await pg.locator('button[aria-label^="Details for"]').first().click();
+  await pg.waitForSelector('[role="dialog"]', { timeout: 6000 });
+  await pg.waitForTimeout(600);
+  await checkTargets('detail modal');
+  const modalLabelled = await pg.locator('[role="dialog"][aria-modal="true"]').count();
+  if (modalLabelled !== 1) surfaceFails.push('detail modal missing role/aria-modal');
+  await pg.keyboard.press('Escape');
+  await pg.waitForTimeout(400);
+
+  for (let i = 0; i < 3; i++) {
+    const star = pg.locator('button[aria-label^="Lock "]').first();
+    if (await star.count() === 0) break;
+    await pg.evaluate(() => window.scrollTo(0, 0));
+    await pg.waitForTimeout(120);
+    await star.click();
+    await pg.waitForTimeout(420);
+  }
+  await pg.waitForSelector('h2:has-text("Beat my")', { timeout: 8000 });
+  await pg.waitForTimeout(600);
+  await checkTargets('garage summary and share panel');
+
+  await pg.goto(URL + '#credits', { waitUntil: 'networkidle' });
+  await pg.waitForTimeout(400);
+  await checkTargets('credits page');
+  const h1 = await pg.locator('h1').count();
+  if (h1 !== 1) surfaceFails.push(`credits page has ${h1} h1 elements`);
+
+  if (surfaceFails.length) surfaceFails.forEach(bad);
+  else ok('filters, detail modal, share panel and credits page all pass targets and copy checks');
+  await c.close();
 }
 
 // --- keyboard path
