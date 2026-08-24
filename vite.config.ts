@@ -13,6 +13,10 @@ export default defineConfig({
         manualChunks(id: string) {
           if (id.includes('node_modules/react') || id.includes('node_modules/scheduler')) return 'react';
           if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) return 'motion';
+          // details.json is dynamically imported and must stay its own chunk.
+          // Routing all of /src/data/ into 'catalog' silently pulled it into
+          // the eager bundle and defeated the lazy load.
+          if (id.includes('details.json')) return undefined;
           if (id.includes('/src/data/')) return 'catalog';
           return undefined;
         },

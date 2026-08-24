@@ -11,14 +11,21 @@
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { vehicleSchema, type AuthoredVehicle } from '../src/data/schema';
+import { encodeCatalog } from '../src/data/codec';
+import type { Vehicle } from '../src/data/types';
 import { groupA } from '../src/data/vehicles/group-a';
 import { groupB } from '../src/data/vehicles/group-b';
 import { groupC } from '../src/data/vehicles/group-c';
 import { groupD } from '../src/data/vehicles/group-d';
 import { groupE } from '../src/data/vehicles/group-e';
 import { groupF } from '../src/data/vehicles/group-f';
+import { groupG } from '../src/data/vehicles/group-g';
+import { groupH } from '../src/data/vehicles/group-h';
+import { groupI } from '../src/data/vehicles/group-i';
+import { groupJ } from '../src/data/vehicles/group-j';
+import { groupK } from '../src/data/vehicles/group-k';
 
-const RAW = [...groupA, ...groupB, ...groupC, ...groupD, ...groupE, ...groupF];
+const RAW = [...groupA, ...groupB, ...groupC, ...groupD, ...groupE, ...groupF, ...groupG, ...groupH, ...groupI, ...groupJ, ...groupK];
 
 const seen = new Set<string>();
 const parsed: AuthoredVehicle[] = RAW.map((record, i) => {
@@ -41,7 +48,10 @@ const slim = parsed.map((v) => ({
   spec: v.spec, pricing: v.pricing, ownership: v.ownership,
   // Cautions render on the card, so they stay in the critical path.
   knownIssues: v.notes.knownIssues,
-}));
+})) as unknown as Vehicle[];
+
+// Columnar, dictionary-encoded. See src/data/codec.ts for why.
+const encoded = encodeCatalog(slim);
 
 const details = Object.fromEntries(
   parsed.map((v) => [
@@ -56,10 +66,13 @@ const details = Object.fromEntries(
 );
 
 mkdirSync('src/data/generated', { recursive: true });
-writeFileSync('src/data/generated/catalog.slim.json', JSON.stringify(slim));
+writeFileSync('src/data/generated/catalog.slim.json', JSON.stringify(encoded));
 writeFileSync('src/data/generated/details.json', JSON.stringify(details));
 
+const plain = JSON.stringify(slim).length;
+const packed = JSON.stringify(encoded).length;
 console.log(
-  `catalog: ${parsed.length} records -> slim ${(JSON.stringify(slim).length / 1024).toFixed(1)} kB, ` +
+  `catalog: ${parsed.length} records -> slim ${(packed / 1024).toFixed(1)} kB ` +
+    `(${(plain / 1024).toFixed(1)} kB unpacked, ${(100 - (packed / plain) * 100).toFixed(0)}% saved), ` +
     `details ${(JSON.stringify(details).length / 1024).toFixed(1)} kB`,
 );

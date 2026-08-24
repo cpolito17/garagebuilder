@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { Suspense, lazy, useCallback, useMemo, useState } from 'react';
 import { CATALOG, PRICES_AS_OF } from './data/catalog';
 import { ROLE_LABEL, type Role } from './data/types';
 import { findMatches, type Filters, type Match } from './lib/matching';
@@ -10,7 +10,14 @@ import {
   type GarageState,
 } from './state/garage';
 import { BudgetBar } from './components/BudgetBar';
-import { DetailModal } from './components/DetailModal';
+/**
+ * The detail view and its chart are a secondary interaction, so they are not
+ * in the critical path to first render. Loading them on demand keeps roughly
+ * 10 kB gzipped out of the initial bundle.
+ */
+const DetailModal = lazy(() =>
+  import('./components/DetailModal').then((m) => ({ default: m.DetailModal })),
+);
 import { GarageSummary } from './components/GarageSummary';
 import { byId } from './data/catalog';
 import { SlotColumn } from './components/SlotColumn';
@@ -169,6 +176,8 @@ export default function App() {
         </footer>
       </main>
 
+      {detail && (
+        <Suspense fallback={null}>
       <DetailModal
         match={detail?.match ?? null}
         slotBudget={detail ? alloc.perSlot.get(detail.slotId) ?? 0 : 0}
@@ -186,6 +195,8 @@ export default function App() {
         }}
         onClose={() => setDetail(null)}
       />
+        </Suspense>
+      )}
     </div>
   );
 }

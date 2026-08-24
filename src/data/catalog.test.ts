@@ -6,8 +6,10 @@ import { milesAffordable, priceAtMiles, plausibleMaxMiles, ceilingPrice } from '
 /** Sanity checks over the whole catalog. docs/DATA-MODEL.md section 8. */
 
 describe('catalog integrity', () => {
-  it('parses every record and holds 60 for Wave 1', () => {
-    expect(CATALOG.length).toBe(60);
+  it('parses every record and only grows', () => {
+    // A floor rather than an exact count, so authoring a new wave does not
+    // fail the suite, but losing records still does.
+    expect(CATALOG.length).toBeGreaterThanOrEqual(135);
   });
 
   it('has unique ids', () => {
@@ -67,10 +69,11 @@ describe('catalog integrity', () => {
 describe('role coverage', () => {
   const byRole = (r: Role) => CATALOG.filter((v) => v.roles.includes(r));
 
-  it('covers every role with at least four vehicles in Wave 1', () => {
-    // Wave 1 target. The full 250 record catalog raises this to twelve.
+  it('covers every role with enough vehicles to make a real choice', () => {
+    // Twelve was the target set for the full catalog in DATA-MODEL section 8,
+    // and every role clears it at 126 records.
     for (const r of ROLES) {
-      expect(byRole(r).length, r).toBeGreaterThanOrEqual(4);
+      expect(byRole(r).length, r).toBeGreaterThanOrEqual(12);
     }
   });
 
@@ -83,7 +86,7 @@ describe('role coverage', () => {
           return p < 12_000 ? 'low' : p <= 30_000 ? 'mid' : 'high';
         }),
       );
-      expect(tiers.size, `${r} spans ${[...tiers].join(', ')}`).toBeGreaterThanOrEqual(2);
+      expect(tiers.size, `${r} spans ${[...tiers].join(', ')}`).toBeGreaterThanOrEqual(3);
     }
   });
 

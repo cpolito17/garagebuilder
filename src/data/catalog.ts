@@ -1,5 +1,6 @@
 import type { Vehicle, VehicleDetails } from './types';
-import slim from './generated/catalog.slim.json';
+import { decodeCatalog, type EncodedCatalog } from './codec';
+import encoded from './generated/catalog.slim.json';
 
 /**
  * Wave 1 catalog. US market, model years 1990 to current, new and used.
@@ -14,7 +15,7 @@ import slim from './generated/catalog.slim.json';
 
 export const PRICES_AS_OF = 'August 2026';
 
-export const CATALOG = slim as unknown as Vehicle[];
+export const CATALOG: Vehicle[] = decodeCatalog(encoded as unknown as EncodedCatalog);
 
 export const byId = new Map(CATALOG.map((v) => [v.id, v]));
 
