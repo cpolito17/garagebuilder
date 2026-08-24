@@ -9,11 +9,26 @@ describe('catalog integrity', () => {
   it('parses every record and only grows', () => {
     // A floor rather than an exact count, so authoring a new wave does not
     // fail the suite, but losing records still does.
-    expect(CATALOG.length).toBeGreaterThanOrEqual(135);
+    expect(CATALOG.length).toBeGreaterThanOrEqual(250);
   });
 
   it('has unique ids', () => {
     expect(new Set(CATALOG.map((v) => v.id)).size).toBe(CATALOG.length);
+  });
+
+  it('has no duplicate vehicles under different ids', () => {
+    // Unique ids are not enough. Authoring a wave without re-reading the
+    // previous one put the same eleven cars in twice under ids that differed
+    // only in style, and only this check would have caught it.
+    const seen = new Map<string, string>();
+    const collisions: string[] = [];
+    for (const v of CATALOG) {
+      const key = `${v.make}|${v.model}|${v.years[0]}-${v.years[1]}`.toLowerCase();
+      const prior = seen.get(key);
+      if (prior) collisions.push(`${prior} and ${v.id} are both ${key}`);
+      else seen.set(key, v.id);
+    }
+    expect(collisions).toEqual([]);
   });
 
   it('keeps floor below base on every record', () => {

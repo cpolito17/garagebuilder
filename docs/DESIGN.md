@@ -592,6 +592,11 @@ design's own requirements make unreachable.
 **This is a ceiling, not a licence.** Re-measure with `node scripts/perf.mjs`,
 do not estimate.
 
+**Measured at the full 250 record catalog:** initial JS 153.38 kB gzipped,
+inside the ceiling. LCP 1148ms on fast 4G and 1884ms on slow 4G with 6x CPU
+throttling, CLS 0.0007. The catalog is now the largest single chunk at
+28.39 kB gzipped, which is the cost of the thing the app is actually for.
+
 **Headroom was bought properly rather than by raising the number again.**
 Motion ships a feature bundle, and the expensive half of it is layout
 projection, which existed in this app to serve exactly two `layout` props.

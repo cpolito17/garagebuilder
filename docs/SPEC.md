@@ -431,8 +431,9 @@ to head rendered.
   are fetched by `npm run images` and could not be downloaded in the build
   environment, whose network policy blocks every image host.
 - Outbound search links to listings sites: built, in the detail view.
-- Catalog to 250: not done. 135 records is where it stands, and the payload
-  budget in DESIGN.md section 10 says what has to change before 250 ships.
+- Catalog to 250: done. Every role carries well over the twelve vehicle target
+  across three price tiers, and the payload stayed inside the ceiling because
+  the headroom was bought first (DESIGN.md section 10).
 - OG Worker: not built. Still the first thing to add if the tool gets used,
   because a static site cannot serve per-garage link previews.
 - Landing page: not built, and only worth building if the tool goes public.

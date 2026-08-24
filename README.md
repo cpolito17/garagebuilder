@@ -20,7 +20,7 @@ vehicle renders its typographic identity band, which is a designed state.
 ```bash
 npm install
 npm run dev          # development server
-npm test             # 132 tests
+npm test             # 133 tests
 npm run build        # validates the catalog, typechecks, builds
 npm run preview      # then, against the running preview:
                      #   node scripts/audit.mjs   accessibility audit, both themes
