@@ -1,5 +1,8 @@
 import { chromium } from 'playwright';
 const URL = process.env.URL || 'http://127.0.0.1:4200/';
+// The bare origin is the landing page now, so the builder checks address it
+// explicitly. docs/SPEC.md section 7.
+const APP = `${URL}#build`;
 const fails = [], warns = [], passes = [];
 const ok = (m) => passes.push(m);
 const bad = (m) => fails.push(m);
@@ -17,7 +20,7 @@ const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromi
 for (const scheme of ['light', 'dark']) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: scheme });
   const p = await ctx.newPage();
-  await p.goto(URL, { waitUntil: 'networkidle' });
+  await p.goto(APP, { waitUntil: 'networkidle' });
   await p.waitForTimeout(300);
 
   // --- contrast on real rendered text
@@ -160,7 +163,7 @@ for (const scheme of ['light', 'dark']) {
     if (dashes.length) surfaceFails.push(`${label}: banned dashes in copy`);
   };
 
-  await pg.goto(URL, { waitUntil: 'networkidle' });
+  await pg.goto(APP, { waitUntil: 'networkidle' });
   await pg.waitForTimeout(300);
 
   await pg.locator('button:has-text("Filters")').first().click();
@@ -203,7 +206,7 @@ for (const scheme of ['light', 'dark']) {
 // --- keyboard path
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const p = await ctx.newPage();
-await p.goto(URL, { waitUntil: 'networkidle' });
+await p.goto(APP, { waitUntil: 'networkidle' });
 const order = [];
 for (let i = 0; i < 14; i++) {
   await p.keyboard.press('Tab');
@@ -234,6 +237,188 @@ await p.waitForTimeout(250);
 const v2 = await p.locator('[role="slider"]').first().getAttribute('aria-valuenow');
 if (Number(v2) - Number(v1) > Number(v1) - Number(v0)) ok(`shift+arrow takes a larger step (${v1} -> ${v2})`);
 else warn(`shift+arrow step not clearly larger (${v1} -> ${v2})`);
+
+// --- landing page, governed by design-taste-frontend in full (DESIGN.md 1.2).
+// The checkable half of that skill's pre-flight list, run mechanically because
+// a checklist nobody executes is a checklist that silently rots.
+for (const scheme of ['light', 'dark']) {
+  const c = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: scheme });
+  const pg = await c.newPage();
+  await pg.goto(URL, { waitUntil: 'networkidle' });
+  await pg.waitForTimeout(500);
+
+  const L = await pg.evaluate(() => {
+    const text = (el) => (el?.innerText || '').trim();
+    const product = [...document.querySelectorAll('[data-product]')];
+    const inProduct = (el) => product.some((p) => p.contains(el));
+
+    // An eyebrow is an uppercase wide-tracked micro-label. Field labels inside
+    // the embedded product widget are controls, not decoration.
+    const eyebrows = [...document.querySelectorAll('span,p,div,h2,h3')].filter((el) => {
+      if (!el.textContent?.trim() || el.children.length > 0 || inProduct(el)) return false;
+      const cs = getComputedStyle(el);
+      const track = parseFloat(cs.letterSpacing) / parseFloat(cs.fontSize);
+      return cs.textTransform === 'uppercase' && track >= 0.05;
+    }).map(text);
+
+    const accentButtons = [...document.querySelectorAll('button')].filter((b) => {
+      const bg = getComputedStyle(b).backgroundColor.match(/\d+/g);
+      if (!bg) return false;
+      const [r, g, bl] = bg.slice(0, 3).map(Number);
+      return Math.max(r, g, bl) - Math.min(r, g, bl) > 45;
+    }).map(text);
+
+    const header = document.querySelector('header');
+    const h1 = document.querySelector('h1');
+
+    // The hero's own CTA, not the nav's: the nav button is always in view and
+    // proves nothing about whether the hero fits.
+    const cta = [...document.querySelectorAll('main button')].find((b) => text(b).length > 0);
+    const heroSub = h1?.parentElement?.querySelector('p');
+
+    // Line count from the text's own line boxes. Dividing a fixed-height
+    // button by its line-height counts padding as a second line.
+    const lineCount = (el) => {
+      if (!el) return 0;
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      let node, lines = 0;
+      while ((node = walker.nextNode())) {
+        if (!node.textContent.trim()) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        lines += range.getClientRects().length;
+      }
+      return lines;
+    };
+
+    const radii = new Set();
+    for (const el of document.querySelectorAll('*')) {
+      const r = getComputedStyle(el).borderTopLeftRadius;
+      if (r && r !== '0px' && !r.includes('%')) radii.add(r);
+    }
+
+    const bodyBg = getComputedStyle(document.body).backgroundColor;
+    const sectionBgs = [...document.querySelectorAll('section')]
+      .map((el) => getComputedStyle(el).backgroundColor)
+      .filter((v) => v && !v.endsWith(', 0)'));
+
+    return {
+      dashes: ['—', '–'].filter((d) => document.body.innerText.includes(d)),
+      eyebrows,
+      sections: document.querySelectorAll('main > section').length,
+      accentButtons,
+      headerHeight: header ? Math.round(header.getBoundingClientRect().height) : 0,
+      // One line means every child shares a vertical centre, not a top edge:
+      // a 24px wordmark and a 44px button never start at the same y.
+      headerRows: header
+        ? new Set([...header.querySelectorAll(':scope > div > *')].map((el) => {
+            const r = el.getBoundingClientRect();
+            return Math.round((r.top + r.bottom) / 20);
+          })).size
+        : 0,
+      h1Lines: lineCount(h1),
+      subWords: heroSub ? text(heroSub).split(/\s+/).length : 0,
+      ctaBottom: cta ? Math.round(cta.getBoundingClientRect().bottom) : 0,
+      ctaLines: lineCount(cta),
+      marquees: document.querySelectorAll('.marquee-run').length / 2,
+      scrollCue: /\bscroll\b/i.test(document.body.innerText),
+      radii: [...radii],
+      bodyBg,
+      sectionBgs,
+      ids: (() => {
+        const seen = new Set(), dupes = [];
+        for (const el of document.querySelectorAll('[id]')) {
+          if (seen.has(el.id)) dupes.push(el.id);
+          seen.add(el.id);
+        }
+        return dupes;
+      })(),
+      smallTargets: [...document.querySelectorAll('button,a,[role="slider"],input')]
+        .filter((el) => {
+          const r = el.getBoundingClientRect();
+          return (r.width || r.height) && r.height < 44;
+        })
+        .map((el) => `${el.tagName} ${Math.round(el.getBoundingClientRect().height)}px`),
+    };
+  });
+
+  const tag = `[landing ${scheme}]`;
+  if (L.dashes.length) bad(`${tag} em or en dash in copy`);
+  else ok(`${tag} zero em-dashes and en-dashes`);
+
+  const eyebrowCap = Math.ceil(L.sections / 3);
+  if (L.eyebrows.length > eyebrowCap) bad(`${tag} ${L.eyebrows.length} eyebrows over a cap of ${eyebrowCap}: ${L.eyebrows.join(', ')}`);
+  else ok(`${tag} ${L.eyebrows.length} decorative eyebrows across ${L.sections} sections (cap ${eyebrowCap})`);
+
+  const labels = new Set(L.accentButtons);
+  if (labels.size > 1) bad(`${tag} more than one call to action: ${[...labels].join(' | ')}`);
+  else ok(`${tag} one call to action, used ${L.accentButtons.length} times: "${[...labels][0] ?? 'none'}"`);
+
+  if (L.headerHeight > 80 || L.headerRows > 1) bad(`${tag} nav is ${L.headerHeight}px over ${L.headerRows} row(s)`);
+  else ok(`${tag} nav is ${L.headerHeight}px on one line`);
+
+  if (L.h1Lines > 2) bad(`${tag} hero headline runs to ${L.h1Lines} lines`);
+  else if (L.subWords > 20) bad(`${tag} hero subtext is ${L.subWords} words`);
+  else if (L.ctaBottom > 1000) bad(`${tag} hero CTA is below the fold at ${L.ctaBottom}px`);
+  else if (L.ctaLines > 1) bad(`${tag} CTA label wraps to ${L.ctaLines} lines`);
+  else ok(`${tag} hero fits: ${L.h1Lines}-line headline, ${L.subWords}-word subtext, CTA ends at ${L.ctaBottom}px`);
+
+  if (L.marquees > 1) bad(`${tag} ${L.marquees} marquees`);
+  else ok(`${tag} ${L.marquees} marquee`);
+
+  if (L.scrollCue) bad(`${tag} scroll cue in copy`);
+  else ok(`${tag} no scroll cues`);
+
+  // Tailwind v4 renders rounded-full as calc(infinity * 1px), which computes
+  // to 2^25 px. Anything past a few hundred is a pill.
+  const allowed = new Set(['4px', '10px', '12px', '14px', '16px', '18px', '20px', '24px']);
+  const stray = L.radii.filter((r) => !allowed.has(r) && parseFloat(r) < 999);
+  if (stray.length) bad(`${tag} radii outside the shape system: ${stray.join(', ')}`);
+  else ok(`${tag} radii all inside the shape system`);
+
+  const lumOf = (v) => lum(parse(v));
+  const off = L.sectionBgs.filter((v) => Math.abs(lumOf(v) - lumOf(L.bodyBg)) > 0.25);
+  if (off.length) bad(`${tag} section inverts the page theme: ${off.join(', ')}`);
+  else ok(`${tag} every section stays in the page theme`);
+
+  if (L.ids.length) bad(`${tag} duplicate ids: ${L.ids.join(', ')}`);
+  else ok(`${tag} no duplicate element ids`);
+
+  if (L.smallTargets.length) bad(`${tag} targets under 44px: ${L.smallTargets.join(', ')}`);
+  else ok(`${tag} every interactive target is at least 44px tall`);
+
+  // Contrast on the landing's own text, composited over its real backdrop.
+  const pairs = await pg.evaluate(() => {
+    const out = [], seen = new Set();
+    const opaque = (el) => {
+      let node = el;
+      while (node) {
+        const bg = getComputedStyle(node).backgroundColor;
+        const m = (bg || '').match(/[\d.]+/g);
+        if (m && (m.length < 4 || Number(m[3]) === 1)) return bg;
+        node = node.parentElement;
+      }
+      return getComputedStyle(document.body).backgroundColor;
+    };
+    for (const el of document.querySelectorAll('span,p,h1,h2,h3,button,a')) {
+      if (!el.textContent?.trim() || el.children.length > 0) continue;
+      const cs = getComputedStyle(el);
+      const key = `${cs.color}|${opaque(el)}|${cs.fontSize}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ fg: cs.color, bg: opaque(el), size: parseFloat(cs.fontSize), weight: cs.fontWeight });
+    }
+    return out;
+  });
+  const fails2 = pairs.filter((s) => {
+    const large = s.size >= 24 || (s.size >= 18.66 && Number(s.weight) >= 700);
+    return ratio(parse(s.fg), parse(s.bg)) < (large ? 3 : 4.5);
+  });
+  if (fails2.length) bad(`${tag} contrast below AA: ${fails2.map((f) => `${f.fg} on ${f.bg} @${f.size}px`).join(', ')}`);
+  else ok(`${tag} checked ${pairs.length} text/background pairs for WCAG AA`);
+
+  await c.close();
+}
 
 console.log('\n=== PASS ===');   passes.forEach((m) => console.log('  ' + m));
 if (warns.length) { console.log('\n=== WARN ==='); warns.forEach((m) => console.log('  ' + m)); }

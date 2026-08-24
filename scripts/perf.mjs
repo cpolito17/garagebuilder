@@ -1,10 +1,20 @@
 import { chromium } from 'playwright';
 const URL = process.env.URL || 'http://127.0.0.1:4210/';
+const APP = `${URL}#build`;
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+// Two entry surfaces now: a cold visit lands on the marketing page, a shared
+// link lands on the builder. Both are somebody's first paint.
+const SURFACES = [
+  { label: 'landing', url: URL, ready: 'h1' },
+  { label: 'builder', url: APP, ready: 'article' },
+];
+
 for (const p0 of [
   { name: 'Fast 4G, mid-tier phone', down: 9_000_000, lat: 60, cpu: 4 },
   { name: 'Slow 4G, low-end phone', down: 1_600_000, lat: 150, cpu: 6 },
 ]) {
+ console.log(`${p0.name} (${p0.cpu}x CPU)`);
+ for (const surface of SURFACES) {
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
   const p = await ctx.newPage();
   const cdp = await ctx.newCDPSession(p);
@@ -17,13 +27,13 @@ for (const p0 of [
     new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: true });
   });
   const t0 = Date.now();
-  await p.goto(URL, { waitUntil: 'load' });
-  await p.waitForSelector('article', { timeout: 40000 });
-  const firstResult = Date.now() - t0;
+  await p.goto(surface.url, { waitUntil: 'load' });
+  await p.waitForSelector(surface.ready, { timeout: 40000 });
+  const ready = Date.now() - t0;
   await p.waitForTimeout(2500);
   const m = await p.evaluate(() => ({ lcp: window.__lcp, cls: window.__cls, fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime ?? 0 }));
-  console.log(`${p0.name} (${p0.cpu}x CPU)`);
-  console.log(`  FCP ${m.fcp.toFixed(0)}ms · LCP ${m.lcp.toFixed(0)}ms · CLS ${m.cls.toFixed(4)} · first card ${firstResult}ms`);
+  console.log(`  ${surface.label.padEnd(8)} FCP ${m.fcp.toFixed(0)}ms · LCP ${m.lcp.toFixed(0)}ms · CLS ${m.cls.toFixed(4)} · ${surface.ready} at ${ready}ms`);
   await ctx.close();
+ }
 }
 await b.close();

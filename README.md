@@ -9,8 +9,8 @@ budget implies. Lock one car per slot, then send it to someone as a challenge:
 same budget, same slots, beat it.
 
 **Status:** Phases 1 to 4 built. The math, the catalog of 250 vehicle
-generations, the allocation mechanic, the detail view, the garage summary and
-the whole share and challenge loop work end to end.
+generations, the allocation mechanic, the detail view, the garage summary, the
+landing page and the whole share and challenge loop work end to end.
 
 Photographs are the one thing missing, and only because the build environment's
 network policy blocks every image host. The system around them is complete: run
@@ -25,6 +25,7 @@ npm run build        # validates the catalog, typechecks, builds
 npm run preview      # then, against the running preview:
                      #   node scripts/audit.mjs   accessibility audit, both themes
                      #   node scripts/smoke.mjs   end to end interaction check
+                     #   node scripts/perf.mjs    LCP and CLS on throttled mobile
 
 npm run images       # fetch vehicle photography from Wikimedia Commons
 npm run coverage     # role and price-tier coverage report for the catalog
@@ -94,6 +95,15 @@ discount. That per-car tuning is the catalog's whole value.
 
 Everything the user builds lives in `?g=`. There is nothing to log into and
 nothing to lose.
+
+### Routes
+
+| URL | Shows |
+| --- | --- |
+| `/` | The landing page, on a cold visit only. |
+| `/#build` | The builder. |
+| `/?g=...` | A shared garage: the builder, or the challenge view when the link carries picks. Never the landing page. |
+| `/#credits` | Photo credits and licences. |
 
 ### Link previews
 

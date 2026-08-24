@@ -395,13 +395,60 @@ truth for the layout.
 
 ## 7. Landing page
 
-Only built if the tool goes public. Not part of Phase 1.
+Built. `src/components/Landing.tsx`. A marketing surface, so
+`design-taste-frontend` governs it in full including its pre-flight checklist
+(see `DESIGN.md` section 1.2), at dials 7 / 5 / 3.
 
-When built, it is a marketing surface and the `design-taste-frontend` rules
-apply to it in full (see `DESIGN.md` section 1). It needs: a hero that shows the
-actual product rather than describing it, one honest statement about estimates,
-a live example garage that is really the tool running, and a single CTA. No
-testimonials, no logo wall, no pricing table. There is nothing to sell.
+### 7.1 Where it sits
+
+A cold visit to `/` gets the landing page. Everything else goes straight to the
+builder: `#build`, `#credits`, and above all any URL carrying `?g=`. A shared
+link that stopped at a marketing page would break the only loop this product
+has, so the landing page is an entry, never a gate. The builder writes its
+state to the URL with `replaceState`, and that write is suppressed while the
+landing page is showing, so browsing the landing page never leaves a garage
+nobody built in the address bar.
+
+### 7.2 What is on it
+
+Six sections, six different layout families, one call to action ("Build your
+garage") used three times with no second intent anywhere on the page.
+
+1. **Hero.** Asymmetric split. Two-line headline, one sentence, the CTA, and
+   the real allocation mechanic running beside it: three slots, three real
+   sliders, the real catalog behind them. Dragging one moves money out of the
+   others and re-picks their cars, which is the entire product in one gesture.
+   No screenshot, no mockup.
+2. **The curve.** One real car at three real budgets, computed by the same
+   inversion the builder runs, so the figures on the marketing page cannot
+   drift from what the tool would actually offer. Tile widths fall as the
+   odometer falls. Carries the honest statement about estimates: authored
+   curves calibrated against asking prices, not listings, not an appraisal,
+   and they will drift.
+3. **The loop.** The share card, rendered on scroll into view by the same
+   canvas renderer the share panel uses, with its picks derived from the
+   matcher rather than a hardcoded list so it cannot advertise a car the
+   catalog has since dropped.
+4. **Breadth.** The catalog count, then the one marquee on the page. A number
+   says the catalog is big; the names answer the only question a reader
+   actually has, which is whether their car is in it.
+5. **Limits.** What the tool does not do, in four short statements.
+6. **Close.** The same CTA, centred.
+
+No testimonials, no logo wall, no pricing table, no eyebrows, no scroll cues,
+no fabricated names or numbers. There is nothing to sell.
+
+### 7.3 Verified mechanically
+
+`scripts/audit.mjs` runs the checkable half of the pre-flight list against the
+rendered page in both themes: zero em-dashes, eyebrow count against the
+sections-over-three cap, one call to action, nav on one line under 80px, hero
+headline within two lines with the subtext under 20 words and the CTA above the
+fold, one marquee, radii inside the shape system, no section inverting the page
+theme, 44px targets, no duplicate ids, and WCAG AA on every text and background
+pair. `scripts/smoke.mjs` covers the routing: the landing renders cold, its
+hero slider actually moves the allocation, the CTA reaches the builder, and a
+link carrying a garage skips the landing entirely.
 
 ---
 
@@ -448,7 +495,7 @@ Verified end to end in a fresh browser context: link copied, opened cold,
 presented as a challenge, budget and slot roles inherited, picks cleared, head
 to head rendered.
 
-**Phase 4 - Polish and scale. Partly built.**
+**Phase 4 - Polish and scale. Built.**
 - Real photography system, licensing page: built. The photographs themselves
   are fetched by `npm run images` and could not be downloaded in the build
   environment, whose network policy blocks every image host.
@@ -459,7 +506,7 @@ to head rendered.
 - OG Worker: built. Per-garage titles and descriptions on every shared link,
   with the generic preview as the fallback for anything unreadable. The
   preview image stays generic on purpose (section 6.4).
-- Landing page: in progress, section 7.
+- Landing page: built, section 7.
 
 ---
 

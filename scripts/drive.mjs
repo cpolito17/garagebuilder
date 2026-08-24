@@ -1,7 +1,8 @@
 import { chromium } from 'playwright';
 
 const OUT = '/tmp/claude-0/-home-user-garagebuilder/73adfb7a-063a-5e23-9226-f5c9be369bf4/scratchpad/shots';
-const URL = 'http://127.0.0.1:4179/';
+const URL = process.env.URL || 'http://127.0.0.1:4179/';
+const APP = `${URL}#build`;
 const errors = [];
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
@@ -16,7 +17,7 @@ async function page(opts) {
 
 // ---------- desktop, light
 let p = await page({ viewport: { width: 1440, height: 1000 }, colorScheme: 'light' });
-await p.goto(URL, { waitUntil: 'networkidle' });
+await p.goto(APP, { waitUntil: 'networkidle' });
 await p.waitForTimeout(400);
 await p.screenshot({ path: `${OUT}/01-desktop-light.png` });
 
@@ -71,13 +72,13 @@ await p.screenshot({ path: `${OUT}/04-auto-allocated.png`, fullPage: false });
 
 // ---------- desktop dark
 const pd = await page({ viewport: { width: 1440, height: 1000 }, colorScheme: 'dark' });
-await pd.goto(URL, { waitUntil: 'networkidle' });
+await pd.goto(APP, { waitUntil: 'networkidle' });
 await pd.waitForTimeout(400);
 await pd.screenshot({ path: `${OUT}/05-desktop-dark.png` });
 
 // ---------- mobile
 const pm = await page({ viewport: { width: 390, height: 844 }, colorScheme: 'light', isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-await pm.goto(URL, { waitUntil: 'networkidle' });
+await pm.goto(APP, { waitUntil: 'networkidle' });
 await pm.waitForTimeout(400);
 await pm.screenshot({ path: `${OUT}/06-mobile-light.png` });
 const railCount = await pm.locator('nav[aria-label="Slots"] button').count();
@@ -87,7 +88,7 @@ console.log('mobile horizontal overflow:', horizontalOverflow);
 
 // ---------- mobile dark, deeper scroll
 const pmd = await page({ viewport: { width: 390, height: 844 }, colorScheme: 'dark', isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
-await pmd.goto(URL, { waitUntil: 'networkidle' });
+await pmd.goto(APP, { waitUntil: 'networkidle' });
 await pmd.waitForTimeout(300);
 await pmd.mouse.wheel(0, 500);
 await pmd.waitForTimeout(300);
@@ -95,7 +96,7 @@ await pmd.screenshot({ path: `${OUT}/07-mobile-dark.png` });
 
 // ---------- reduced motion
 const pr = await page({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
-await pr.goto(URL, { waitUntil: 'networkidle' });
+await pr.goto(APP, { waitUntil: 'networkidle' });
 await pr.waitForTimeout(300);
 const rmCards = await pr.locator('article').count();
 console.log('reduced-motion cards rendered:', rmCards);

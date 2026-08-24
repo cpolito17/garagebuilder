@@ -1,11 +1,12 @@
 import { chromium } from 'playwright';
 const URL = process.env.URL || 'http://127.0.0.1:4195/';
+const APP = `${URL}#build`;
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const errs = [];
 const p = await b.newPage({ viewport: { width: 1440, height: 1100 } });
 p.on('pageerror', (e) => errs.push(e.message));
 p.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
-await p.goto(URL, { waitUntil: 'networkidle' });
+await p.goto(APP, { waitUntil: 'networkidle' });
 await p.waitForTimeout(400);
 
 const check = (name, ok) => console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}`);
@@ -77,6 +78,35 @@ check('url carries the garage', p.url().includes('?g=1.'));
 await p.goto(URL + '#credits', { waitUntil: 'networkidle' });
 await p.waitForTimeout(300);
 check('credits page renders', (await p.locator('h1:has-text("Image credits")').count()) === 1);
+
+// landing page and the two ways past it
+{
+  const lp = await b.newPage({ viewport: { width: 1440, height: 1100 } });
+  lp.on('pageerror', (e) => errs.push(e.message));
+  lp.on('console', (m) => { if (m.type() === 'error') errs.push(m.text()); });
+
+  await lp.goto(URL, { waitUntil: 'networkidle' });
+  await lp.waitForTimeout(500);
+  check('landing renders on a cold visit', (await lp.locator('h1:has-text("One budget")').count()) === 1);
+
+  // The hero widget is the real allocation mechanic, not a picture of it.
+  const before = await lp.locator('[role="slider"]').first().getAttribute('aria-valuenow');
+  await lp.locator('[role="slider"]').first().focus();
+  for (let i = 0; i < 3; i++) await lp.keyboard.press('ArrowRight');
+  await lp.waitForTimeout(300);
+  const after = await lp.locator('[role="slider"]').first().getAttribute('aria-valuenow');
+  check('hero allocation is live', Number(after) > Number(before));
+
+  await lp.locator('main button:has-text("Build your garage")').first().click();
+  await lp.waitForSelector('article', { timeout: 8000 });
+  check('cta opens the builder', lp.url().includes('#build'));
+
+  // A shared link must never stop at the marketing page.
+  await lp.goto(`${URL}?g=1.eyJ2IjoxLCJiIjo1MDAwMCwicyI6W3sidCI6MjUwMDAsInIiOjB9LHsidCI6MjUwMDAsInIiOjF9XX0`, { waitUntil: 'networkidle' });
+  await lp.waitForSelector('article', { timeout: 8000 });
+  check('a link with a garage skips the landing', (await lp.locator('h1:has-text("One budget")').count()) === 0);
+  await lp.close();
+}
 
 console.log('ERRORS:', errs.length ? errs.slice(0, 3).join(' | ') : 'none');
 await b.close();

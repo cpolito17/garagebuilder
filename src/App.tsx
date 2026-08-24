@@ -34,17 +34,27 @@ const SharePanel = lazy(() =>
 import { byId } from './data/catalog';
 import { SlotColumn } from './components/SlotColumn';
 import { useIsDesktop } from './hooks/useMediaQuery';
+import { Landing } from './components/Landing';
+
+/**
+ * A cold visit with nothing in the URL gets the landing page; anything that
+ * carries a garage goes straight to the builder, because a shared link that
+ * stops at a marketing page is a broken link. docs/SPEC.md section 7.
+ */
+const BUILD_ROUTE = '#build';
 
 /**
  * A link that arrives with picks in it is somebody's finished garage, so it
  * opens as a challenge. A link with no picks is your own saved work, so it
  * opens as the builder. docs/SPEC.md section 6.2.
  */
-function bootFromUrl(): { state: GarageState; rival: GarageState | null } {
+function bootFromUrl(): { state: GarageState; rival: GarageState | null; fromLink: boolean } {
   const incoming = readGarageFromLocation();
-  if (!incoming) return { state: initialGarage(50_000, 3), rival: null };
+  if (!incoming) return { state: initialGarage(50_000, 3), rival: null, fromLink: false };
   const hasPicks = incoming.slots.some((s) => s.pick);
-  return hasPicks ? { state: incoming, rival: incoming } : { state: incoming, rival: null };
+  return hasPicks
+    ? { state: incoming, rival: incoming, fromLink: true }
+    : { state: incoming, rival: null, fromLink: true };
 }
 
 export default function App() {
@@ -69,9 +79,12 @@ export default function App() {
   // "back" rather than "undo one slider tick".
   useEffect(() => {
     if (rival && !challengeAccepted) return; // do not overwrite the incoming link yet
+    // Writing state while the landing page is showing would put a garage in the
+    // URL nobody built, and the next visit would skip the landing for it.
+    if (route !== BUILD_ROUTE && !boot.current.fromLink) return;
     const t = setTimeout(() => writeGarageToLocation(state), 400);
     return () => clearTimeout(t);
-  }, [state, rival, challengeAccepted]);
+  }, [state, rival, challengeAccepted, route]);
 
   // Slots with nothing at their current allocation. Reported once at the top
   // rather than leaving the user to work out why a column is empty.
@@ -100,6 +113,20 @@ export default function App() {
   const complete = picks.every(Boolean) && picks.length > 0;
 
   const activeSlot = state.slots[Math.min(active, state.slots.length - 1)];
+
+  // The landing page is the entry, not a gate: any link carrying a garage,
+  // and any return visit to #build, skips it entirely.
+  const showLanding = route !== BUILD_ROUTE && route !== '#credits' && !boot.current.fromLink;
+  if (showLanding) {
+    return (
+      <Landing
+        onStart={() => {
+          window.location.hash = BUILD_ROUTE;
+          setRoute(BUILD_ROUTE);
+        }}
+      />
+    );
+  }
 
   if (route === '#credits') {
     return (

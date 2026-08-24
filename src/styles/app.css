@@ -225,3 +225,24 @@ button { font: inherit; color: inherit; }
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ------------------------------------------------------------------
+   Landing page only. docs/DESIGN.md section 1.2.
+   ------------------------------------------------------------------ */
+
+/* One marquee on the page, and only for the catalog strip, where the point is
+   breadth rather than any individual name. Transform only, so it composites. */
+@keyframes marquee-run {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+
+.marquee-run {
+  animation: marquee-run 90s linear infinite;
+}
+
+/* The global reduced-motion block collapses the duration, which would leave
+   the strip parked at its end position. Stop it at the start instead. */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-run { animation: none !important; }
+}

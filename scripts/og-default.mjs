@@ -6,7 +6,7 @@
 import { chromium } from 'playwright';
 const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
 const p = await b.newPage({ viewport: { width: 1440, height: 1100 } });
-await p.goto(process.env.URL || 'http://127.0.0.1:4211/', { waitUntil: 'networkidle' });
+await p.goto(`${process.env.URL || 'http://127.0.0.1:4211/'}#build`, { waitUntil: 'networkidle' });
 for (let i = 0; i < 3; i++) {
   const s = p.locator('button[aria-label^="Lock "]').first();
   if (await s.count() === 0) break;

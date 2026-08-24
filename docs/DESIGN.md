@@ -32,7 +32,7 @@ Resolution:
 | --- | --- | --- |
 | **Builder, Detail, Challenge** (product UI) | `apple-design` for interaction and materials, `high-end-visual-design` for component architecture | `design-taste-frontend` applies only through its taste rules: typography, color discipline, AI tells, copy, accessibility |
 | **Share card** (rendered image) | Own rules, section 8 | Type-led, thumbnail-legible |
-| **Landing page** (Phase 4, only if public) | `design-taste-frontend` in full | Every rule, including the pre-flight checklist |
+| **Landing page** (built, `SPEC.md` section 7) | `design-taste-frontend` in full | Every rule, including the pre-flight checklist, run mechanically by `scripts/audit.mjs` |
 
 ### 1.3 Conflicts, resolved
 
@@ -87,7 +87,9 @@ spreading that out costs the user scrolling with no gain.
 
 **Landing reasoning.** Variance 7 and density 3 are the marketing defaults.
 Motion drops to 5 because the page's job is to show the builder working, and
-motion competing with an embedded live tool is noise.
+motion competing with an embedded live tool is noise. What shipped honours
+that: one scroll-reveal stagger, one marquee, and the hero's own gesture
+physics, which belong to the embedded builder rather than to the page.
 
 ---
 
@@ -597,6 +599,36 @@ inside the ceiling. LCP 1148ms on fast 4G and 1884ms on slow 4G with 6x CPU
 throttling, CLS 0.0007. The catalog is now the largest single chunk at
 28.39 kB gzipped, which is the cost of the thing the app is actually for.
 
+**Re-measured with the landing page:** initial JS 156.25 kB gzipped. The
+landing page cost 2.87 kB because it reuses the builder's own components rather
+than shipping a second set, and the share-card renderer it loads on scroll
+became its own 1.88 kB chunk that the share panel now shares.
+
+| Surface | Profile | FCP | LCP | CLS |
+| --- | --- | --- | --- | --- |
+| Landing | Fast 4G, 4x CPU | 688ms | 688ms | 0.0000 |
+| Builder | Fast 4G, 4x CPU | 764ms | 764ms | 0.0000 |
+| Landing | Slow 4G, 6x CPU | 1988ms | 1988ms | 0.0000 |
+| Builder | Slow 4G, 6x CPU | 2124ms | 2124ms | 0.0000 |
+
+**The fonts were a layout-shift bug, and the landing page exposed it.** Both
+woff2 files are only discovered after the stylesheet has been fetched and
+parsed, so they arrive a round trip late and the swap reflows the page under
+them. On the builder that cost 0.0007 CLS, because its largest type sits in
+fixed-height sticky chrome. On the landing page, where a 64px headline sets the
+height of everything below it, the same swap measured **0.209 CLS**, twice the
+failing threshold.
+
+Fixed by preloading the two latin files from the build output. Vite hashes the
+file names, so the tags are written from the bundle by a plugin in
+`vite.config.ts` rather than by hand. CLS went to 0.000 on both surfaces at a
+cost of roughly 100ms of LCP on slow 4G, which is the right side of that trade:
+the shift was a failing Core Web Vital and the LCP stays inside 2.5s.
+
+Preloading the sans file alone was measured too: it recovered most of the LCP
+but left 0.0008 CLS from the mono swap, and the LCP difference was inside the
+run-to-run noise. Both files are preloaded.
+
 **Headroom was bought properly rather than by raising the number again.**
 Motion ships a feature bundle, and the expensive half of it is layout
 projection, which existed in this app to serve exactly two `layout` props.
@@ -714,4 +746,20 @@ the work is not finished.
 - [ ] Nothing communicated by color alone
 - [ ] `backdrop-filter` on fixed and sticky chrome only, verified
 - [ ] Image geometry reserved, CLS at or near zero
-- [ ] Lighthouse run on a throttled mobile profile, budgets in section 10 met
+- [ ] Web fonts preloaded, so the swap does not reflow the page under itself
+- [ ] Both entry surfaces measured on a throttled mobile profile
+      (`node scripts/perf.mjs`), budgets in section 10 met
+
+**Landing page only** (`design-taste-frontend` governs it in full, section 1.2).
+Everything above still applies. These are checked mechanically by
+`scripts/audit.mjs` in both themes:
+- [ ] Eyebrow count at or under one per three sections; in practice zero
+- [ ] One call to action, one label, no second intent anywhere on the page
+- [ ] Nav on one line, 80px or less
+- [ ] Hero headline within two lines, subtext 20 words or fewer, CTA above the
+      fold at 1000px
+- [ ] At most one marquee, and it earns its place
+- [ ] No scroll cues, no version labels, no locale strips, no fake screenshots
+- [ ] At least four different layout families across the sections
+- [ ] Every figure on the page computed by the product's own functions, never
+      transcribed, so the marketing surface cannot drift from the tool
