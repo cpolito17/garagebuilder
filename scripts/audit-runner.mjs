@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-const preview = spawn(npm, ['run', 'preview', '--', '--port', '4200'], { stdio: 'inherit' });
+const preview = spawn(npm, ['run', 'preview', '--', '--host', '127.0.0.1', '--port', '4200'], { stdio: 'inherit' });
 
 async function ready() {
   for (let attempt = 0; attempt < 60; attempt++) {
