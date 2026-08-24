@@ -238,7 +238,7 @@ Contains, in order of visual weight:
 
 1. Vehicle image (or typographic tile, per `DATA-MODEL.md` section 7)
 2. Year span, make, model, generation
-3. Price range for this slot
+3. One rounded estimated price for this slot
 4. Implied odometer
 5. Three spec chips chosen by the slot's role (a sports slot shows power,
    drivetrain, transmission; a family slot shows seats, cargo, MPG)
@@ -252,7 +252,7 @@ runs highest and where the mono numerals earn their place.
 
 One star per slot. Starring:
 
-- Pins the slot to the car's midpoint price.
+- Pins the slot to the displayed estimated price.
 - Redistributes the remainder across fluid slots with a spring, not a jump.
 - Collapses the slot to a compact locked state showing the pick.
 - Leaves an obvious unlock control.
@@ -267,13 +267,13 @@ other tool does.
 - **Total spend** against budget, with the delta.
 - **Coverage.** Which of the standard capabilities the garage can and cannot
   do: carry more than two people, carry more than four, tow, handle snow,
-  handle unpaved roads, exceed 300 miles of range comfortably. Rendered as
+  handle unpaved roads, and cover miles cheaply. Rendered as
   present or absent, factually, from the spec fields. No score, no grade.
 - **Overlap.** Where two slots return substantially the same capability
   profile, it is stated once, plainly. Two RWD manual coupes is a fact about
   the garage, and a fact is enough.
 - **Running cost.** Combined annual maintenance estimate and combined fuel cost
-  at 12,000 miles per vehicle per year. Shown alongside the budget, never
+  at 12,000 miles per garage per year, split evenly between its cars. Shown alongside the budget, never
   folded into it, because the budget decision is purchase price only.
 
 This section is where the tool is most useful and where it must be least
@@ -364,7 +364,7 @@ A static site cannot serve per-garage Open Graph tags, so every pasted link
 would show the same generic card in iMessage, Discord, and X. That is a direct
 tax on the only distribution mechanism this product has, so it is fixed by a
 small Cloudflare Worker in front of the same static assets (`worker/index.ts`,
-`wrangler.toml`). The app is unchanged and still works without it: the Worker
+`wrangler.jsonc`). The app is unchanged and still works without it: the Worker
 decodes the state parameter it already receives, rewrites the meta tags in the
 served HTML, and passes everything that is not HTML straight through.
 
@@ -372,7 +372,7 @@ A garage with pinned picks previews as:
 
 > **Beat my $50,000 garage**
 > Mazda MX-5 Miata, Honda S2000, Toyota 4Runner. $50,000 spent, 674 hp,
-> 8 pedals. Same budget, same slots. Do better.
+> 2 manual-equipped cars. Same budget, same slots. Do better.
 
 A link with no readable state gets the generic preview; a garage saved with
 nothing pinned yet is someone's work in progress rather than a challenge, so it

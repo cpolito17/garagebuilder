@@ -1,7 +1,6 @@
 import type { Issue, Role, Vehicle } from '../data/types';
 import {
-  milesAffordable, priceAtMiles, priceRange, plausibleMaxMiles, plausibleMinMiles,
-  type PriceBand,
+  estimatedPrice, milesAffordable, plausibleMaxMiles, plausibleMinMiles,
 } from './pricing';
 
 /** Hard filters exposed per slot. All optional, all AND-ed. */
@@ -39,7 +38,7 @@ export const ROLE_PRESETS: Partial<Record<Role, Partial<Filters>>> = {
 };
 
 export type MatchOutcome =
-  | { kind: 'match'; vehicle: Vehicle; atMiles: number; band: PriceBand; spend: number; score: number; cautions: Issue[] }
+  | { kind: 'match'; vehicle: Vehicle; atMiles: number; spend: number; score: number; cautions: Issue[] }
   | { kind: 'below-floor'; vehicle: Vehicle; shortfall: number }
   | { kind: 'over-ceiling'; vehicle: Vehicle; needsMiles: number }
   | { kind: 'implausible'; vehicle: Vehicle }
@@ -55,7 +54,10 @@ function passesFilters(v: Vehicle, f: Filters): boolean {
   if (f.minTowingLb > 0 && (s.towingLb ?? 0) < f.minTowingLb) return false;
   if (f.minGroundClearanceIn > 0 && (s.groundClearanceIn ?? 0) < f.minGroundClearanceIn) return false;
   if (f.minCargoCuFt > 0 && (s.cargoCuFt ?? 0) < f.minCargoCuFt) return false;
-  if (v.years[1] < f.minYear) return false;
+  // A generation-wide price estimate cannot prove that the priced example is
+  // from the final model year. Be conservative: the whole generation must be
+  // at least as new as the requested floor.
+  if (v.years[0] < f.minYear) return false;
   if (v.ownership.reliabilityIndex < f.minReliability) return false;
   return true;
 }
@@ -126,7 +128,7 @@ export function evaluate(v: Vehicle, q: SlotQuery): MatchOutcome {
   // exists at all is still above the limit they set.
   if (atMiles > q.maxMiles) return { kind: 'over-ceiling', vehicle: v, needsMiles: atMiles };
 
-  const spend = priceAtMiles(v.pricing, atMiles);
+  const spend = Math.min(q.budget, estimatedPrice(v.pricing, atMiles));
 
   const score =
     0.40 * budgetFit(spend, q.budget) +
@@ -138,7 +140,6 @@ export function evaluate(v: Vehicle, q: SlotQuery): MatchOutcome {
     kind: 'match',
     vehicle: v,
     atMiles,
-    band: priceRange(v.pricing, atMiles),
     spend,
     score,
     cautions: cautionsFor(v, atMiles),

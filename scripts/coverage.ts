@@ -15,7 +15,7 @@ console.log('\nTOP 6 AT $18,000, any role, 150k ceiling');
 const top = findMatches(CATALOG, { budget: 18000, role: null, maxMiles: 150000, filters: DEFAULT_FILTERS });
 for (const m of top.matches.slice(0, 6)) {
   console.log(
-    `  ${(m.vehicle.make + ' ' + m.vehicle.model).padEnd(26)} ${String(Math.round(m.atMiles / 1000)).padStart(4)}k mi   $${m.band.mid.toLocaleString().padStart(7)}   score ${m.score.toFixed(3)}   ${m.cautions.length} caution`,
+    `  ${(m.vehicle.make + ' ' + m.vehicle.model).padEnd(26)} ${String(Math.round(m.atMiles / 1000)).padStart(4)}k mi   $${m.spend.toLocaleString().padStart(7)}   score ${m.score.toFixed(3)}   ${m.cautions.length} caution`,
   );
 }
 console.log(`  ${top.matches.length} matches, ${top.belowFloor.length} below floor, ${top.implausible} implausible`);

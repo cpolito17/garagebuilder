@@ -10,12 +10,12 @@
     "preview": "vite preview",
     "test": "npm run catalog && vitest run",
     "typecheck": "npm run catalog && tsc -b --noEmit",
-    "audit": "node scripts/audit.mjs",
+    "audit": "node scripts/audit-runner.mjs",
     "coverage": "vite-node scripts/coverage.ts",
     "images": "vite-node scripts/fetch-images.ts",
     "placeholders": "vite-node scripts/dev-placeholders.ts",
-    "images:reset": "node -e \"require('fs').writeFileSync('src/data/generated/images.json','{}')\" && rm -rf public/vehicles",
-    "og:default": "vite preview --port 4211 & sleep 3; URL=http://127.0.0.1:4211/ node scripts/og-default.mjs",
+    "images:reset": "node scripts/reset-images.mjs",
+    "og:default": "node scripts/og-default-runner.mjs",
     "worker:deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {

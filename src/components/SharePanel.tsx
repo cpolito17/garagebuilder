@@ -14,8 +14,8 @@ import { formatUsd } from '../lib/pricing';
  * budget and the slot roles and gives the recipient a move to make.
  */
 export function SharePanel({
-  state, picks, spend,
-}: { state: GarageState; picks: (Vehicle | undefined)[]; spend: number }) {
+  state, picks, spend, rival,
+}: { state: GarageState; picks: (Vehicle | undefined)[]; spend: number; rival?: GarageState }) {
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState<CardSize | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export function SharePanel({
 
   useEffect(() => {
     let live = true;
-    renderShareCard({ state, picks, spend, shareUrl: url }, 'story')
+    renderShareCard({ state, picks, spend, shareUrl: url, rival }, 'story')
       .then((blob) => {
         if (!live) return;
         const next = URL.createObjectURL(blob);
@@ -36,7 +36,7 @@ export function SharePanel({
       })
       .catch(() => { /* the panel still works without a preview */ });
     return () => { live = false; };
-  }, [state, picks, spend, url]);
+  }, [state, picks, spend, url, rival]);
 
   useEffect(() => () => { if (previewRef.current) URL.revokeObjectURL(previewRef.current); }, []);
 
@@ -54,7 +54,7 @@ export function SharePanel({
     setBusy(size);
     setError(null);
     try {
-      const blob = await renderShareCard({ state, picks, spend, shareUrl: url }, size);
+      const blob = await renderShareCard({ state, picks, spend, shareUrl: url, rival }, size);
       const href = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = href;
@@ -68,18 +68,19 @@ export function SharePanel({
     } finally {
       setBusy(null);
     }
-  }, [state, picks, spend, url]);
+  }, [state, picks, spend, url, rival]);
 
   return (
     <section className="shell" style={{ borderRadius: 24, padding: 8 }}>
       <div className="core flex flex-col gap-5 p-4" style={{ borderRadius: 16 }}>
         <div className="flex flex-col gap-1">
           <h2 className="t-h2 m-0 text-[--text-primary]">
-            Beat my {formatUsd(state.budget)} garage
+            {rival ? 'Share the head-to-head' : `Beat my ${formatUsd(state.budget)} garage`}
           </h2>
           <p className="m-0 t-small text-[--text-secondary]">
-            Anyone who opens this link gets the same budget and the same slots, with nothing
-            picked. That is the whole challenge.
+            {rival
+              ? 'The card compares both completed garages; the link starts a fresh challenge with the same budget and roles.'
+              : 'Anyone who opens this link gets the same budget and the same slots, with nothing picked. That is the whole challenge.'}
           </p>
         </div>
 

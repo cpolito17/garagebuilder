@@ -96,7 +96,7 @@ type PriceCurve = {
   floor: number;         // asymptote: what the market pays regardless of miles
   decay: number;         // 0..1, fraction of above-floor value lost per 10k miles
   lowMileCap: number;    // max multiplier over `base` for a garage-queen example
-  spread: number;        // 0..1, +/- fraction for the displayed range
+  spread: number;        // retained calibration uncertainty; not displayed
   msrpNew?: number;      // required when status === "current"
 };
 ```
@@ -269,7 +269,7 @@ Three findings from this calibration that shape the product:
    state should be able to say that the budget is below a car's floor rather
    than implying no such car exists.
 
-Round-trip identity holds exactly across the working range:
+Round-trip identity holds exactly across the invertible working range:
 `price(milesAffordable(B)) === B` for every B between `floor` and
 `base * lowMileCap`. Outside that range the clamps bind, which is correct
 behavior and must be asserted in tests rather than treated as drift.
@@ -295,31 +295,31 @@ The clamp can push a vehicle back above the slot's mileage ceiling: the budget
 reaches it, but the lowest-mileage example that exists is still over the limit
 the user set. That is reported as `over-ceiling`, not silently dropped.
 
-### 3.3 Displayed range
+### 3.3 Displayed price
 
 ```
-low  = round(price(m) * (1 - spread), 250)
-high = round(price(m) * (1 + spread), 250)
+displayed = floor(price(m) / 250) * 250
 ```
 
-`spread` is typically 0.10 for mainstream cars and 0.18 for anything where
-condition dominates (project cars, exotics, rust-belt trucks).
-
-Never display a single-point price. The range is honest and it is also a
-better interface: it stops the user from treating an estimate as a quote.
+The app shows one conservative rounded estimate so locking a result changes
+the garage's leftover budget by the same amount the user just saw. `spread`
+is retained only as authored uncertainty for future analysis. The interface
+labels the number as an estimate and links to live listing searches; it must
+not imply that the figure is an appraisal or quote.
 
 ### 3.4 New cars
 
-When `status === "current"`:
+When `status === "current"`, delivery mileage is anchored to `msrpNew` and
+the authored used baseline remains independent:
 
 ```
-base = msrpNew
-baselineMiles = 0
+price(0) = msrpNew
+price(baselineMiles) = base
 ```
 
-`milesAffordable` returns 0 or negative, which clamps to 0 and renders as
-"New, 0 miles." The mileage control has no effect on that card, and the card
-says so rather than silently ignoring the control.
+The curve interpolates monotonically between those anchors, then applies the
+normal used-price decay beyond `baselineMiles`. A budget at or above MSRP
+renders as "New, 0 miles."
 
 A current generation may also appear as a used option if the generation started
 more than three years ago. Author it as one record. The curve handles both.
@@ -340,7 +340,7 @@ function matches(vehicle, slot):
   if m > slot.maxMiles:                                   return false
   if m > vehicle.pricing.plausibleMaxMiles:               return false   // see below
 
-  return { vehicle, atMiles: max(0, m), price: priceRange(vehicle, m) }
+  return { vehicle, atMiles: max(0, m), price: estimatedPrice(vehicle, m) }
 ```
 
 `plausibleMaxMiles` is derived, not authored:
@@ -408,13 +408,18 @@ and a black box in a tool that gives financial estimates is a trust problem.
 
 ## 6. Sourcing and provenance
 
-Every price and spec figure carries a source.
+The original catalog did not retain a source for every individual figure.
+The app now discloses that limitation instead of fabricating precision: every
+detail record carries catalog-level field-group provenance, an update date,
+and a warning to verify the exact year and trim.
 
 ```ts
 type Source = {
-  field: string;    // "pricing.base", "spec.mpgCombined"
-  url: string;
-  retrieved: string;
+  fields: string[];
+  label: string;
+  kind: "official" | "public-dataset" | "editorial";
+  url?: string;
+  note?: string;
 };
 ```
 
@@ -556,7 +561,7 @@ type SlotState = {
 };
 ```
 
-Encoded as `?g=<base64url(deflate(JSON))>`. Only non-default fields are
+Encoded as `?g=<version>.<base64url(JSON)>`. Only non-default fields are
 serialized, which keeps a typical 4-slot garage under 300 characters.
 
 The `v` field is first and permanent. When the schema changes, old links must

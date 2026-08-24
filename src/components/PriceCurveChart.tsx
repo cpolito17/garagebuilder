@@ -20,11 +20,12 @@ const H = 220;
 const PAD = { top: 14, right: 16, bottom: 30, left: 56 };
 
 export function PriceCurveChart({
-  curve, firstYear, budget, atMiles, ceilingMiles,
+  curve, firstYear, budget, selectedPrice, atMiles, ceilingMiles,
 }: {
   curve: PriceCurve;
   firstYear: number;
   budget: number;
+  selectedPrice: number;
   atMiles: number;
   ceilingMiles: number;
 }) {
@@ -54,7 +55,8 @@ export function PriceCurveChart({
   const xTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round((maxMiles * f) / 10_000) * 10_000);
   const yTicks = [bottom + (top - bottom) * 0.05, (top + bottom) / 2, top * 0.97];
 
-  const inRange = budget >= bottom && budget <= top;
+  const curvePrice = priceAtMiles(curve, atMiles);
+  const inRange = curvePrice >= bottom && curvePrice <= top;
 
   function onMove(e: React.PointerEvent<SVGSVGElement>) {
     const rect = svgRef.current?.getBoundingClientRect();
@@ -128,16 +130,16 @@ export function PriceCurveChart({
         {inRange && (
           <>
             <line
-              x1={PAD.left} x2={x(atMiles)} y1={y(budget)} y2={y(budget)}
+              x1={PAD.left} x2={x(atMiles)} y1={y(curvePrice)} y2={y(curvePrice)}
               stroke="var(--accent)" strokeWidth={1.5} strokeDasharray="3 3" opacity={0.75}
             />
             <line
-              x1={x(atMiles)} x2={x(atMiles)} y1={y(budget)} y2={H - PAD.bottom}
+              x1={x(atMiles)} x2={x(atMiles)} y1={y(curvePrice)} y2={H - PAD.bottom}
               stroke="var(--accent)" strokeWidth={1.5} strokeDasharray="3 3" opacity={0.75}
             />
             {/* A 2px surface ring keeps the marker legible over the curve */}
-            <circle cx={x(atMiles)} cy={y(budget)} r={7} fill="var(--bg-raised)" />
-            <circle cx={x(atMiles)} cy={y(budget)} r={5} fill="var(--accent)" />
+            <circle cx={x(atMiles)} cy={y(curvePrice)} r={7} fill="var(--bg-raised)" />
+            <circle cx={x(atMiles)} cy={y(curvePrice)} r={5} fill="var(--accent)" />
           </>
         )}
 
@@ -163,8 +165,9 @@ export function PriceCurveChart({
       <figcaption className="t-small text-[--text-tertiary] m-0">
         {inRange ? (
           <>
-            This slot&apos;s <span style={{ color: 'var(--accent)' }}>budget</span> lands at about{' '}
-            <span className="num">{Math.round(atMiles / 1000)},000 miles</span>. The dotted floor is
+            The <span style={{ color: 'var(--accent)' }}>{formatUsd(selectedPrice)} estimate</span> lands at about{' '}
+            <span className="num">{Math.round(atMiles / 1000)},000 miles</span>
+            {selectedPrice < budget ? ` and leaves ${formatUsd(budget - selectedPrice)} in this slot` : ''}. The dotted floor is
             what the market pays regardless of odometer.
           </>
         ) : (

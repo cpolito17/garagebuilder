@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Minus, Plus, ArrowClockwise } from '@phosphor-icons/react';
 import { m } from 'motion/react';
 import { formatUsd } from '../lib/pricing';
@@ -18,6 +19,19 @@ export function BudgetBar({
   onAutoAllocate: () => void;
 }) {
   const count = state.slots.length;
+  const [budgetDraft, setBudgetDraft] = useState(() => state.budget.toLocaleString('en-US'));
+  const [editingBudget, setEditingBudget] = useState(false);
+
+  useEffect(() => {
+    if (!editingBudget) setBudgetDraft(state.budget.toLocaleString('en-US'));
+  }, [state.budget, editingBudget]);
+
+  const commitBudget = () => {
+    const digits = budgetDraft.replace(/[^0-9]/g, '');
+    const next = Number(digits);
+    if (digits && Number.isFinite(next)) onBudget(Math.min(2_000_000, Math.max(1500, next)));
+    setEditingBudget(false);
+  };
 
   return (
     <header className="chrome sticky top-0 z-20 border-b border-[--hairline]">
@@ -31,10 +45,16 @@ export function BudgetBar({
                 id="budget"
                 type="text"
                 inputMode="numeric"
-                value={state.budget.toLocaleString('en-US')}
-                onChange={(e) => {
-                  const n = Number(e.target.value.replace(/[^0-9]/g, ''));
-                  if (Number.isFinite(n)) onBudget(Math.min(2_000_000, Math.max(1500, n)));
+                value={budgetDraft}
+                onFocus={(e) => { setEditingBudget(true); e.currentTarget.select(); }}
+                onChange={(e) => setBudgetDraft(e.target.value.replace(/[^0-9,]/g, ''))}
+                onBlur={commitBudget}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') e.currentTarget.blur();
+                  if (e.key === 'Escape') {
+                    setBudgetDraft(state.budget.toLocaleString('en-US'));
+                    e.currentTarget.blur();
+                  }
                 }}
                 className="num t-h2 h-11 w-[7ch] bg-transparent text-[--text-primary] outline-none md:t-h1"
                 style={{ borderBottom: '1px solid var(--hairline)' }}

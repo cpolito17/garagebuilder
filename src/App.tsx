@@ -66,8 +66,21 @@ export default function App() {
 
   useEffect(() => {
     const onHash = () => setRoute(window.location.hash);
+    const onPopState = () => {
+      setRoute(window.location.hash);
+      const incoming = readGarageFromLocation();
+      if (!incoming) return;
+      const hasPicks = incoming.slots.some((slot) => slot.pick);
+      setState(incoming);
+      setRival(hasPicks ? incoming : null);
+      setChallengeAccepted(false);
+    };
     window.addEventListener('hashchange', onHash);
-    return () => window.removeEventListener('hashchange', onHash);
+    window.addEventListener('popstate', onPopState);
+    return () => {
+      window.removeEventListener('hashchange', onHash);
+      window.removeEventListener('popstate', onPopState);
+    };
   }, []);
   const [active, setActive] = useState(0);
   const isDesktop = useIsDesktop();
@@ -109,7 +122,10 @@ export default function App() {
 
   // The summary appears once every slot is locked, because a garage with an
   // empty slot is not yet a set worth evaluating.
-  const picks = state.slots.map((s) => (s.pick ? byId.get(s.pick) : undefined));
+  const picks = useMemo(
+    () => state.slots.map((s) => (s.pick ? byId.get(s.pick) : undefined)),
+    [state.slots],
+  );
   const complete = picks.every(Boolean) && picks.length > 0;
 
   const activeSlot = state.slots[Math.min(active, state.slots.length - 1)];
@@ -131,23 +147,36 @@ export default function App() {
   if (route === '#credits') {
     return (
       <div className="min-h-[100dvh] bg-[--bg-base]">
-        <LicencesPage onBack={() => { window.location.hash = ''; setRoute(''); }} />
+        <LicencesPage onBack={() => { window.location.hash = BUILD_ROUTE; setRoute(BUILD_ROUTE); }} />
+      </div>
+    );
+  }
+
+  if (rival && !challengeAccepted) {
+    return (
+      <div className="min-h-[100dvh] bg-[--bg-base]">
+        <div className="mx-auto max-w-[1400px] px-4 py-4">
+          <ChallengeIntro
+            rival={rival}
+            onAccept={() => {
+              setState(challengeFrom(rival));
+              setChallengeAccepted(true);
+              window.location.hash = BUILD_ROUTE;
+            }}
+            onDismiss={() => {
+              setState(initialGarage(50_000, 3));
+              setRival(null);
+              setChallengeAccepted(true);
+              window.location.hash = BUILD_ROUTE;
+            }}
+          />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-[100dvh] bg-[--bg-base]">
-      {rival && !challengeAccepted && (
-        <div className="mx-auto max-w-[1400px] px-4 pt-4">
-          <ChallengeIntro
-            rival={rival}
-            onAccept={() => { setState(challengeFrom(rival)); setChallengeAccepted(true); }}
-            onDismiss={() => { setRival(null); setChallengeAccepted(true); }}
-          />
-        </div>
-      )}
-
       <BudgetBar
         state={state}
         alloc={alloc}
@@ -252,7 +281,7 @@ export default function App() {
               <HeadToHead rival={rival} mine={state} mineSpend={alloc.total} />
             )}
             <Suspense fallback={null}>
-              <SharePanel state={state} picks={picks} spend={alloc.total} />
+              <SharePanel state={state} picks={picks} spend={alloc.total} rival={rival ?? undefined} />
             </Suspense>
           </div>
         )}

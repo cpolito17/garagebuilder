@@ -3,6 +3,7 @@ import { CaretDown, ArrowClockwise } from '@phosphor-icons/react';
 import { CATALOG } from '../data/catalog';
 import type { Role } from '../data/types';
 import { DEFAULT_FILTERS, ROLE_PRESETS, findMatches, type Filters } from '../lib/matching';
+import { CURRENT_YEAR } from '../lib/pricing';
 
 /**
  * The full filter set. docs/SPEC.md section 4.4.
@@ -17,13 +18,14 @@ import { DEFAULT_FILTERS, ROLE_PRESETS, findMatches, type Filters } from '../lib
 
 const TRANSMISSIONS = [
   ['manual', 'Manual'], ['automatic', 'Automatic'], ['dct', 'DCT'], ['cvt', 'CVT'],
+  ['single-speed', 'Single-speed'],
 ] as const;
 
 const DRIVETRAINS = [['FWD', 'FWD'], ['RWD', 'RWD'], ['AWD', 'AWD'], ['4WD', '4WD']] as const;
 
 const BODY_STYLES = [
   ['coupe', 'Coupe'], ['sedan', 'Sedan'], ['hatchback', 'Hatch'], ['wagon', 'Wagon'],
-  ['convertible', 'Convertible'], ['suv', 'SUV'], ['truck', 'Truck'], ['van', 'Van'],
+  ['convertible', 'Convertible'], ['targa', 'Targa'], ['suv', 'SUV'], ['truck', 'Truck'], ['van', 'Van'],
 ] as const;
 
 const FUELS = [
@@ -182,11 +184,27 @@ export function FilterPanel({
           </Group>
 
           <Slider
-            label="Oldest model year"
+            label="Generation starts in or after"
             value={filters.minYear}
-            min={1990} max={2024} step={1}
+            min={1990} max={CURRENT_YEAR} step={1}
             format={(v) => String(v)}
             onChange={(v) => onChange({ ...filters, minYear: v })}
+          />
+
+          <Slider
+            label="Minimum cargo space"
+            value={filters.minCargoCuFt}
+            min={0} max={150} step={5}
+            format={(v) => v === 0 ? 'Any' : `${v} cu ft`}
+            onChange={(v) => onChange({ ...filters, minCargoCuFt: v })}
+          />
+
+          <Slider
+            label="Minimum ground clearance"
+            value={filters.minGroundClearanceIn}
+            min={0} max={12} step={0.5}
+            format={(v) => v === 0 ? 'Any' : `${v.toFixed(1)} in`}
+            onChange={(v) => onChange({ ...filters, minGroundClearanceIn: v })}
           />
 
           <Slider

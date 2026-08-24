@@ -198,7 +198,7 @@ export function DetailModal({
                 <section className="flex flex-col gap-2">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="num t-h1 text-[--text-primary]">
-                      {formatUsd(match.band.low)} to {formatUsd(match.band.high)}
+                      {formatUsd(match.spend)}
                     </span>
                     <span className="num t-body text-[--text-secondary]">
                       {match.atMiles < 1000 ? 'New, 0 miles' : `at about ${formatMiles(match.atMiles)}`}
@@ -208,6 +208,7 @@ export function DetailModal({
                     curve={v.pricing}
                     firstYear={v.years[0]}
                     budget={slotBudget}
+                    selectedPrice={match.spend}
                     atMiles={match.atMiles}
                     ceilingMiles={slotMaxMiles}
                   />
@@ -330,8 +331,36 @@ export function DetailModal({
                   </p>
                 </Section>
 
+                {details?.sources && (
+                  <Section title="Data provenance">
+                    <p className="m-0 t-small text-[--text-secondary]">
+                      Updated {details.updatedAt}. These are generation-wide planning estimates,
+                      not a valuation of a particular car. Verify the exact model year, trim,
+                      condition, and local market before buying.
+                    </p>
+                    <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                      {details.sources.map((source) => (
+                        <li key={`${source.label}-${source.fields.join(',')}`} className="t-small text-[--text-tertiary]">
+                          {source.url ? (
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="inline-flex min-h-11 items-center underline"
+                            >
+                              {source.label}
+                            </a>
+                          ) : source.label}
+                          {' · '}{source.fields.join(', ')}
+                          {source.note ? ` · ${source.note}` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  </Section>
+                )}
+
                 <a
-                  href={listingSearchUrl(v, match.band)}
+                  href={listingSearchUrl(v, match.spend)}
                   target="_blank"
                   rel="noreferrer noopener"
                   className="group inline-flex h-11 w-full items-center justify-between gap-2 rounded-full py-1.5 pl-5 pr-1.5 t-small"

@@ -48,7 +48,7 @@ export const ResultCard = memo(function ResultCard({
   const reduce = useReducedMotion();
   const [showCautions, setShowCautions] = useState(false);
   const ref = useRef<HTMLElement>(null);
-  const { vehicle: v, band, atMiles, cautions } = match;
+  const { vehicle: v, spend, atMiles, cautions } = match;
   const worst = cautions[0];
   const hero = heroFor(v.id);
 
@@ -83,9 +83,7 @@ export const ResultCard = memo(function ResultCard({
           <div className="pointer-events-none flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="num t-h2 text-[--text-primary]">
-                {formatUsd(band.low)}
-                <span className="text-[--text-tertiary]"> to </span>
-                {formatUsd(band.high)}
+                {formatUsd(spend)}
               </div>
               <div className="num t-small text-[--text-secondary]">
                 {atMiles < 1000 ? 'New, 0 miles' : `at about ${formatMiles(atMiles)}`}

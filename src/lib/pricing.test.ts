@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  priceAtMiles, milesAffordable, ceilingPrice, priceRange, plausibleMaxMiles,
+  priceAtMiles, milesAffordable, ceilingPrice, estimatedPrice, plausibleMaxMiles,
 } from './pricing';
 import type { PriceCurve } from '../data/types';
 
@@ -107,6 +107,23 @@ describe('milesAffordable', () => {
   });
 });
 
+describe('current-generation pricing', () => {
+  const current = curve({ base: 24_000, baselineMiles: 60_000, floor: 11_000, decay: 0.09, msrpNew: 42_500 });
+
+  it('uses MSRP as the delivery-mileage price', () => {
+    expect(ceilingPrice(current)).toBe(42_500);
+    expect(priceAtMiles(current, 0)).toBe(42_500);
+  });
+
+  it('interpolates continuously between MSRP and the used baseline', () => {
+    expect(priceAtMiles(current, current.baselineMiles)).toBe(current.base);
+    for (const budget of [25_000, 30_000, 38_000, 42_000]) {
+      const miles = milesAffordable(current, budget)!;
+      expect(priceAtMiles(current, miles)).toBeCloseTo(budget, 6);
+    }
+  });
+});
+
 describe('plausibleMaxMiles', () => {
   it('scales with age and caps at 300k', () => {
     expect(plausibleMaxMiles(2023, 2026)).toBe(88_000);
@@ -130,14 +147,10 @@ describe('plausibleMaxMiles', () => {
   });
 });
 
-describe('priceRange', () => {
-  it('brackets the midpoint by the spread and rounds to $250', () => {
-    const c = curve({ spread: 0.1 });
-    const r = priceRange(c, c.baselineMiles);
-    expect(r.mid).toBe(20000);
-    expect(r.low).toBe(18000);
-    expect(r.high).toBe(22000);
-    expect(r.low % 250).toBe(0);
-    expect(r.high % 250).toBe(0);
+describe('estimatedPrice', () => {
+  it('shows one $250-step price that never rounds above the curve', () => {
+    const c = curve({ base: 20_123 });
+    expect(estimatedPrice(c, c.baselineMiles)).toBe(20_000);
+    expect(estimatedPrice(c, c.baselineMiles)).toBeLessThanOrEqual(priceAtMiles(c, c.baselineMiles));
   });
 });

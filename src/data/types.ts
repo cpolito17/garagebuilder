@@ -115,6 +115,14 @@ export type Service = {
   costUsd: number;
 };
 
+export type DataSource = {
+  fields: string[];
+  label: string;
+  kind: 'official' | 'public-dataset' | 'editorial';
+  url?: string;
+  note?: string;
+};
+
 /**
  * Detail-view content. Loaded on demand, never in the critical path.
  *
@@ -127,4 +135,6 @@ export type VehicleDetails = {
   whatToLookFor: string[];
   packages?: Package[];
   milestoneServices?: Service[];
+  updatedAt: string;
+  sources: DataSource[];
 };
