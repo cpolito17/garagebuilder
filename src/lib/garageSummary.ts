@@ -58,7 +58,7 @@ const ORIGIN: Record<string, string> = {
   'Mercedes-Benz': 'DE', Mini: 'DE',
   Genesis: 'KR', Hyundai: 'KR', Kia: 'KR',
   Volvo: 'SE', Saab: 'SE',
-  'Aston Martin': 'GB', Lotus: 'GB', Jaguar: 'GB', McLaren: 'GB', 'Rolls-Royce': 'GB',
+  'Aston Martin': 'GB', Lotus: 'GB', Jaguar: 'GB', 'Land Rover': 'GB', McLaren: 'GB', 'Rolls-Royce': 'GB',
 };
 
 export function originCountry(make: string): string | undefined {
