@@ -12,3 +12,6 @@ src/data/generated/*
 # 250 vehicles of it is ~100MB of binaries that do not belong in git.
 public/vehicles/
 tsconfig.tsbuildinfo
+
+# Wrangler local state (dev server caches, generated types).
+.wrangler/

@@ -1,5 +1,5 @@
 import { chromium } from 'playwright';
-const URL = 'http://127.0.0.1:4200/';
+const URL = process.env.URL || 'http://127.0.0.1:4200/';
 const fails = [], warns = [], passes = [];
 const ok = (m) => passes.push(m);
 const bad = (m) => fails.push(m);

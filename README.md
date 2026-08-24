@@ -8,9 +8,9 @@ tool shows what that money buys in each slot, including the odometer reading the
 budget implies. Lock one car per slot, then send it to someone as a challenge:
 same budget, same slots, beat it.
 
-**Status:** Phases 1 to 3 built and Phase 4 mostly built. The math, the
-catalog, the allocation mechanic, the detail view, the garage summary and the
-whole share and challenge loop work end to end.
+**Status:** Phases 1 to 4 built. The math, the catalog of 250 vehicle
+generations, the allocation mechanic, the detail view, the garage summary and
+the whole share and challenge loop work end to end.
 
 Photographs are the one thing missing, and only because the build environment's
 network policy blocks every image host. The system around them is complete: run
@@ -20,7 +20,7 @@ vehicle renders its typographic identity band, which is a designed state.
 ```bash
 npm install
 npm run dev          # development server
-npm test             # 133 tests
+npm test             # 152 tests
 npm run build        # validates the catalog, typechecks, builds
 npm run preview      # then, against the running preview:
                      #   node scripts/audit.mjs   accessibility audit, both themes
@@ -29,6 +29,9 @@ npm run preview      # then, against the running preview:
 npm run images       # fetch vehicle photography from Wikimedia Commons
 npm run coverage     # role and price-tier coverage report for the catalog
 npm run placeholders # flat test patterns, to check photo layout without network
+
+npm run og:default   # regenerate the default link preview from the real app
+npm run worker:deploy # build, then deploy the static site behind the OG Worker
 ```
 
 `npm run catalog` regenerates `src/data/generated/*.json` from the authored
@@ -87,16 +90,32 @@ discount. That per-car tuning is the catalog's whole value.
 | Fonts | Geist + Geist Mono, self-hosted | Tabular figures. The interface is mostly numbers. |
 | Validation | Zod | Catalog records validate at build time. A bad record fails the build. |
 | State | URL, base64url of deflated JSON | No backend, no accounts. The link is the save file and the distribution model. |
-| Hosting | Cloudflare Pages or GitHub Pages | Static. |
+| Hosting | Cloudflare Workers static assets | Static, plus one Worker for link previews. |
 
 Everything the user builds lives in `?g=`. There is nothing to log into and
 nothing to lose.
 
-**Known limitation:** a static site cannot serve per-garage Open Graph tags, so
-pasted links show a generic preview. If the tool gets used, the first addition
-is a small Cloudflare Worker for per-garage OG images and short links. It does
-not change the architecture, because the garage is already fully encoded in the
-URL the Worker receives. See `SPEC.md` section 6.4.
+### Link previews
+
+A static site cannot serve per-garage Open Graph tags, so every pasted link
+would show the same generic card. `worker/index.ts` fixes that: it sits in
+front of the same `dist/` assets, decodes the state parameter, and rewrites the
+meta tags so the link reads *"Beat my $50,000 garage - Mazda MX-5 Miata, Honda
+S2000, Toyota 4Runner..."*. Anything that is not HTML passes straight through,
+and an unreadable link still serves a working page with the generic preview.
+
+The preview *image* stays generic on purpose. Rendering one per garage at the
+edge needs a WebAssembly rasteriser and an embedded font, measured at 1,359 kB
+gzipped against Cloudflare's 1,024 kB free-tier limit, to reproduce an image
+the client already renders. `public/og-default.png` is the app's own share card,
+captured from the running app by `npm run og:default`.
+
+```bash
+npm run worker:deploy   # npm run build && wrangler deploy
+```
+
+The app is unaffected if the Worker is not deployed: `dist/` is a complete
+static site on its own. See `SPEC.md` section 6.4.
 
 ---
 

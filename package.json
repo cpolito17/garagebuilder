@@ -14,7 +14,9 @@
     "coverage": "vite-node scripts/coverage.ts",
     "images": "vite-node scripts/fetch-images.ts",
     "placeholders": "vite-node scripts/dev-placeholders.ts",
-    "images:reset": "node -e \"require('fs').writeFileSync('src/data/generated/images.json','{}')\" && rm -rf public/vehicles"
+    "images:reset": "node -e \"require('fs').writeFileSync('src/data/generated/images.json','{}')\" && rm -rf public/vehicles",
+    "og:default": "vite preview --port 4211 & sleep 3; URL=http://127.0.0.1:4211/ node scripts/og-default.mjs",
+    "worker:deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -36,6 +38,7 @@
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
     "vite-node": "^6.0.0",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.125.0"
   }
 }

@@ -358,16 +358,38 @@ turns one share into a thread.
 - No signup, ever, anywhere in the loop. An account gate at the share step
   would kill it outright.
 
-### 6.4 Known limitation of the static architecture
+### 6.4 Per-garage link previews
 
-A static site cannot serve per-garage Open Graph tags, so a pasted link shows a
-generic preview card rather than the specific garage. That is a real cost to
-sharing in iMessage, Discord, and X.
+A static site cannot serve per-garage Open Graph tags, so every pasted link
+would show the same generic card in iMessage, Discord, and X. That is a direct
+tax on the only distribution mechanism this product has, so it is fixed by a
+small Cloudflare Worker in front of the same static assets (`worker/index.ts`,
+`wrangler.toml`). The app is unchanged and still works without it: the Worker
+decodes the state parameter it already receives, rewrites the meta tags in the
+served HTML, and passes everything that is not HTML straight through.
 
-Build Phase 1 static as decided. If the tool gets used, the first thing to add
-is a small Cloudflare Worker that serves per-garage OG meta and a short link.
-It is roughly 40 lines and it does not change the app's architecture, because
-the garage state is already fully encoded in the URL the Worker receives.
+A garage with pinned picks previews as:
+
+> **Beat my $50,000 garage**
+> Mazda MX-5 Miata, Honda S2000, Toyota 4Runner. $50,000 spent, 674 hp,
+> 8 pedals. Same budget, same slots. Do better.
+
+A link with no readable state gets the generic preview; a garage saved with
+nothing pinned yet is someone's work in progress rather than a challenge, so it
+previews as `A $50,000 garage, 3 cars`. Garage state is attacker controlled,
+so every injected value is escaped for an HTML attribute and a test asserts
+that a hostile payload cannot break out of one.
+
+**The preview image is not rendered per garage.** Doing that at the edge needs
+a WebAssembly SVG rasteriser plus an embedded font, which measured 1,359 kB
+gzipped against Cloudflare's 1,024 kB free-tier limit, to reproduce an image
+the client already renders locally. Every link therefore points at
+`/og-default.png`, which is not a mock: `npm run og:default` drives the real
+app in a browser, locks three cars, and downloads the app's own 1200x630 share
+card. The title and description carry the specifics, and those are what every
+platform renders as text. If per-garage images later prove worth a paid plan,
+the client-side renderer in `src/lib/shareCard.ts` is already the source of
+truth for the layout.
 
 ---
 
@@ -434,9 +456,10 @@ to head rendered.
 - Catalog to 250: done. Every role carries well over the twelve vehicle target
   across three price tiers, and the payload stayed inside the ceiling because
   the headroom was bought first (DESIGN.md section 10).
-- OG Worker: not built. Still the first thing to add if the tool gets used,
-  because a static site cannot serve per-garage link previews.
-- Landing page: not built, and only worth building if the tool goes public.
+- OG Worker: built. Per-garage titles and descriptions on every shared link,
+  with the generic preview as the fallback for anything unreadable. The
+  preview image stays generic on purpose (section 6.4).
+- Landing page: in progress, section 7.
 
 ---
 

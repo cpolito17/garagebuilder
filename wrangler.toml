@@ -1,0 +1,24 @@
+# Cloudflare Worker for per-garage link previews.
+#
+# The app itself is a static site and works without this. The Worker only adds
+# Open Graph and Twitter meta so a pasted link shows the garage rather than a
+# generic card. See docs/SPEC.md section 6.4.
+#
+#   npm run build
+#   npx wrangler deploy
+
+name = "garage-challenge"
+main = "worker/index.ts"
+compatibility_date = "2025-01-01"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+# The app is a single page: unknown paths serve index.html so a shared link
+# with a state parameter resolves rather than 404s.
+not_found_handling = "single-page-application"
+# Static assets are served ahead of the Worker by default, which would mean the
+# Worker never sees a request for index.html and never rewrites its meta tags.
+# Documents route through the Worker; hashed assets, photographs and the preview
+# image keep the default asset-first path, so they cost no Worker invocations.
+run_worker_first = [ "/*", "!/assets/*", "!/vehicles/*", "!/og-default.png" ]
