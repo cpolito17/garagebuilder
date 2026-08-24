@@ -68,6 +68,27 @@ describe('result diversity', () => {
   });
 });
 
+describe('price-led ranking', () => {
+  it('does not rank a cheap car first when the slot budget exceeds the catalog', () => {
+    const list = findMatches(CATALOG, q({
+      budget: 1_303_281,
+      role: 'sports',
+      maxMiles: 80_000,
+    }));
+    const highestAttainable = Math.max(...list.matches.map((match) => match.spend));
+    expect(list.matches[0]!.spend).toBeGreaterThanOrEqual(highestAttainable * 0.95);
+    expect(list.matches[0]!.vehicle.id).not.toBe('mazda-mx5-nd');
+  });
+
+  it('keeps the top result near the highest attainable price at normal budgets', () => {
+    for (const budget of [20_000, 40_000, 80_000]) {
+      const list = findMatches(CATALOG, q({ budget, role: 'sports', maxMiles: 80_000 }));
+      const highestAttainable = Math.max(...list.matches.map((match) => match.spend));
+      expect(list.matches[0]!.spend, String(budget)).toBeGreaterThanOrEqual(highestAttainable * 0.95);
+    }
+  });
+});
+
 describe('cautions', () => {
   it('surfaces an issue exactly when the implied odometer has passed its onset', () => {
     const v = CATALOG.find((x) => x.id === 'porsche-boxster-986')!;

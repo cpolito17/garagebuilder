@@ -74,14 +74,15 @@ export function cautionsFor(v: Vehicle, atMiles: number): Issue[] {
     .sort((a, b) => b.typicalCostUsd - a.typicalCostUsd);
 }
 
-/** Peaks at 85 to 100 percent of budget consumed. Underspend is penalised about
- *  half as hard as overspend, because underspend is at least recoverable. */
+/** Peaks at 85 to 100 percent of the attainable target. Every dollar below
+ *  that band reduces the score; cheap and moderately priced cars must not tie
+ *  merely because both are far below a very large budget. */
 function budgetFit(spend: number, budget: number): number {
   if (budget <= 0) return 0;
   const r = spend / budget;
   if (r > 1) return Math.max(0, 1 - (r - 1) * 4);
   if (r >= 0.85) return 1;
-  return Math.max(0, 1 - (0.85 - r) * 2);
+  return Math.max(0, r / 0.85);
 }
 
 function roleFit(v: Vehicle, role: Role | null): number {
@@ -94,6 +95,21 @@ function roleFit(v: Vehicle, role: Role | null): number {
 function ownershipFit(v: Vehicle): number {
   const o = v.ownership;
   return (o.reliabilityIndex + o.partsAvailability + (6 - o.insuranceIndex)) / 15;
+}
+
+function rankScore(
+  vehicle: Vehicle,
+  spend: number,
+  atMiles: number,
+  q: SlotQuery,
+  attainableTarget: number,
+): number {
+  return (
+    0.65 * budgetFit(spend, attainableTarget) +
+    0.20 * roleFit(vehicle, q.role) +
+    0.10 * (1 - Math.min(1, atMiles / Math.max(1, q.maxMiles))) +
+    0.05 * ownershipFit(vehicle)
+  );
 }
 
 export type SlotQuery = {
@@ -130,11 +146,7 @@ export function evaluate(v: Vehicle, q: SlotQuery): MatchOutcome {
 
   const spend = Math.min(q.budget, estimatedPrice(v.pricing, atMiles));
 
-  const score =
-    0.40 * budgetFit(spend, q.budget) +
-    0.25 * roleFit(v, q.role) +
-    0.20 * (1 - Math.min(1, atMiles / Math.max(1, q.maxMiles))) +
-    0.15 * ownershipFit(v);
+  const score = rankScore(v, spend, atMiles, q, q.budget);
 
   return {
     kind: 'match',
@@ -162,7 +174,7 @@ export type MatchList = {
  * example of each model at full score and demote the rest so the list shows
  * breadth first and depth second.
  */
-function diversify(matches: Match[]): Match[] {
+function diversify(matches: Match[], attainableTarget: number): Match[] {
   const seen = new Map<string, number>();
   const weighted = matches.map((m) => {
     const key = `${m.vehicle.make}|${m.vehicle.model}`;
@@ -171,7 +183,13 @@ function diversify(matches: Match[]): Match[] {
     const penalty = n === 0 ? 1 : n === 1 ? 0.72 : 0.55;
     return { m, adjusted: m.score * penalty };
   });
-  weighted.sort((a, b) => b.adjusted - a.adjusted);
+  // Price is the primary intent. Compare results in five-percent price bands,
+  // then use role, mileage, ownership, and model diversity inside each band.
+  // This keeps a $30k Miata out of first place in a seven-figure slot without
+  // pretending the catalog contains a seven-figure car.
+  const bandSize = Math.max(500, attainableTarget * 0.05);
+  const band = (spend: number) => Math.floor(Math.max(0, attainableTarget - spend) / bandSize);
+  weighted.sort((a, b) => band(a.m.spend) - band(b.m.spend) || b.adjusted - a.adjusted);
   return weighted.map((w) => w.m);
 }
 
@@ -191,10 +209,17 @@ export function findMatches(catalog: Vehicle[], q: SlotQuery): MatchList {
     else filtered++;
   }
 
+  const attainableTarget = Math.min(
+    q.budget,
+    matches.reduce((highest, match) => Math.max(highest, match.spend), 0),
+  );
+  for (const match of matches) {
+    match.score = rankScore(match.vehicle, match.spend, match.atMiles, q, attainableTarget);
+  }
   matches.sort((a, b) => b.score - a.score);
   belowFloor.sort((a, b) => a.shortfall - b.shortfall);
   overCeiling.sort((a, b) => a.needsMiles - b.needsMiles);
-  return { matches: diversify(matches), belowFloor, overCeiling, implausible, filtered };
+  return { matches: diversify(matches, attainableTarget), belowFloor, overCeiling, implausible, filtered };
 }
 
 /**

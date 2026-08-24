@@ -355,16 +355,21 @@ permits.
 
 ### Ranking
 
-Results sort by a single score, descending:
+The matcher first finds the highest price the filtered catalog can attain
+without exceeding the slot. This becomes the ranking target when the user's
+budget is above the catalog's ceiling. Results sort in five-percent price
+bands, nearest to that target first. A quality score orders each band:
 
 ```
-score = 0.40 * budgetFit        // how completely it uses the slot budget without exceeding it
-      + 0.25 * roleFit          // primary role match beats secondary role match
-      + 0.20 * mileageComfort   // how far under the slot ceiling the required odometer sits
-      + 0.15 * ownershipIndex   // normalized reliability, parts, maintenance
+score = 0.65 * budgetFit        // how completely it uses the attainable target
+      + 0.20 * roleFit          // primary role match beats secondary role match
+      + 0.10 * mileageComfort   // how far under the slot ceiling the required odometer sits
+      + 0.05 * ownershipIndex   // normalized reliability, parts, maintenance
 ```
 
-`budgetFit` peaks at roughly 85 to 100 percent of slot budget consumed. A
+`budgetFit` peaks at roughly 85 to 100 percent of the attainable target. It is
+continuous below that band, so a $30,000 car and a $100,000 car do not tie at
+zero when the slot budget is $1 million. A
 $4,000 car in a $30,000 slot is technically a match and is almost never the
 answer the user wants. Underspending is penalized about half as hard as
 overspending, because underspending is at least recoverable.
