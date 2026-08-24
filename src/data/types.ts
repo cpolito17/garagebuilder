@@ -99,8 +99,32 @@ export type Vehicle = {
   knownIssues: Issue[];
 };
 
-/** Prose only the detail view needs. Loaded on demand. */
+export type Package = {
+  name: string;
+  /** Only when the option was not offered across the whole generation. */
+  years?: [number, number];
+  /** One line: what you actually get. */
+  adds: string;
+  /** Typical asking premium over an otherwise equivalent base car. */
+  premiumUsd: number;
+};
+
+export type Service = {
+  atMiles: number;
+  item: string;
+  costUsd: number;
+};
+
+/**
+ * Detail-view content. Loaded on demand, never in the critical path.
+ *
+ * `packages` and `milestoneServices` are optional and populated only where the
+ * figures are real. Inventing a service interval to fill a section would be
+ * exactly the fake precision this catalog is supposed to avoid.
+ */
 export type VehicleDetails = {
   summary: string;
   whatToLookFor: string[];
+  packages?: Package[];
+  milestoneServices?: Service[];
 };

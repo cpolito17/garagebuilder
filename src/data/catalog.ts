@@ -22,7 +22,10 @@ export const byId = new Map(CATALOG.map((v) => [v.id, v]));
 let detailsCache: Record<string, VehicleDetails> | null = null;
 export async function loadDetails(id: string): Promise<VehicleDetails | undefined> {
   if (!detailsCache) {
-    detailsCache = (await import('./generated/details.json')).default as Record<string, VehicleDetails>;
+    // JSON imports widen tuples to arrays, so the cast goes through unknown.
+    // Shape is guaranteed by the build-time schema, not by this assertion.
+    detailsCache = (await import('./generated/details.json'))
+      .default as unknown as Record<string, VehicleDetails>;
   }
   return detailsCache[id];
 }

@@ -19,6 +19,8 @@ export const groupA: unknown[] = [
         { text: 'Soft top plastic rear window clouds and cracks', onsetMiles: 60000, typicalCostUsd: 600, severity: 'annoyance' },
       ],
       whatToLookFor: ['1994 to 1997 1.8 with the Torsen limited-slip differential', 'R Package: Bilstein dampers, front and rear strut braces', 'Unmolested interior and an original hardtop'],
+      packages: [{"name": "R Package", "years": [1994, 1997], "adds": "Bilstein dampers, front and rear strut braces, stiffer springs, no cruise or AC", "premiumUsd": 1800}],
+      milestoneServices: [{"atMiles": 60000, "item": "Timing belt and water pump", "costUsd": 700}, {"atMiles": 100000, "item": "Clutch and rear main seal", "costUsd": 1400}],
     },
   },
   {
@@ -55,6 +57,8 @@ export const groupA: unknown[] = [
         { text: 'Power retractable hardtop motor and micro-switch failures on PRHT cars', onsetMiles: 100000, typicalCostUsd: 1400, severity: 'expensive' },
       ],
       whatToLookFor: ['2009 and later facelift with the stronger 6-speed and higher redline', 'Suspension package with Bilsteins and limited-slip differential', 'Soft top over PRHT if you want fewer failure points'],
+      packages: [{"name": "Suspension Package", "adds": "Bilstein dampers, limited-slip differential, shock tower brace", "premiumUsd": 1400}, {"name": "Power Retractable Hard Top", "adds": "Folding metal roof, 77 lb heavier, a known failure point", "premiumUsd": 900}],
+      milestoneServices: [{"atMiles": 60000, "item": "Differential and transmission fluid", "costUsd": 320}, {"atMiles": 100000, "item": "Clutch replacement", "costUsd": 1500}],
     },
   },
   {
@@ -72,6 +76,8 @@ export const groupA: unknown[] = [
         { text: 'Early 2016 to 2018 cars have a lower 6800 rpm redline and noticeably less top-end', onsetMiles: 0, typicalCostUsd: 0, severity: 'annoyance' },
       ],
       whatToLookFor: ['2019 and later for the revised 181 hp engine', 'Club trim: Bilstein dampers, limited-slip differential, shock tower brace', 'RF only if you want the targa roof, it adds weight'],
+      packages: [{"name": "Club", "adds": "Bilstein dampers, limited-slip differential, shock tower brace, Brembo front brakes on later cars", "premiumUsd": 2600}],
+      milestoneServices: [{"atMiles": 60000, "item": "Differential and gearbox fluid", "costUsd": 300}],
     },
   },
   {
@@ -89,6 +95,8 @@ export const groupA: unknown[] = [
         { text: 'A small number of early 2022 cars had connecting rod bolt failures, addressed under recall', onsetMiles: 0, typicalCostUsd: 0, severity: 'annoyance' },
       ],
       whatToLookFor: ['Premium trim for the limited-slip differential and adaptive headlights', 'Verify the 2022 rod bolt recall was performed', 'Manual, unless you specifically want the automatic'],
+      packages: [{"name": "Premium", "adds": "Torsen limited-slip differential, adaptive headlights, heated seats, larger wheels", "premiumUsd": 2200}],
+      milestoneServices: [{"atMiles": 60000, "item": "Spark plugs and valve inspection", "costUsd": 650}],
     },
   },
   {
@@ -107,6 +115,8 @@ export const groupA: unknown[] = [
         { text: 'Direct injection carbon buildup on intake valves', onsetMiles: 90000, typicalCostUsd: 900, severity: 'expensive' },
       ],
       whatToLookFor: ['2017 and later facelift, revised gearing and 5 more horsepower', 'Verify the valve spring recall on any 2013 car', 'Performance Package on 2017 and later: Brembos and Sachs dampers'],
+      packages: [{"name": "Performance Package", "years": [2017, 2020], "adds": "Brembo four-piston front brakes, Sachs dampers", "premiumUsd": 2400}],
+      milestoneServices: [{"atMiles": 90000, "item": "Walnut blasting for intake valve carbon", "costUsd": 900}],
     },
   },
   {
@@ -125,6 +135,8 @@ export const groupA: unknown[] = [
         { text: 'AP1 rear suspension geometry is snap-oversteer prone at the limit', onsetMiles: 0, typicalCostUsd: 0, severity: 'annoyance' },
       ],
       whatToLookFor: ['AP2 from 2006 for revised suspension geometry and a 2.2 engine', 'Original unmodified examples, clean service history', 'Check for accident repair, these were crashed often'],
+      packages: [{"name": "Club Racer", "years": [2008, 2009], "adds": "Stiffer suspension, removable hardtop only, no AC or audio, 699 built", "premiumUsd": 22000}],
+      milestoneServices: [{"atMiles": 30000, "item": "Valve clearance adjustment", "costUsd": 600}, {"atMiles": 100000, "item": "Soft top replacement", "costUsd": 1300}],
     },
   },
   {
@@ -144,6 +156,8 @@ export const groupA: unknown[] = [
         { text: 'Window motors and door lock actuators fail', onsetMiles: 100000, typicalCostUsd: 500, severity: 'annoyance' },
       ],
       whatToLookFor: ['2007 and later with the VQ35HR engine, a substantially better unit', 'Track and Grand Touring trims for Brembos and a viscous limited-slip', 'Documented oil consumption test'],
+      packages: [{"name": "Track", "adds": "Brembo brakes, front and rear spoilers, forged wheels, viscous limited-slip differential", "premiumUsd": 2200}],
+      milestoneServices: [{"atMiles": 60000, "item": "Clutch and slave cylinder", "costUsd": 1600}],
     },
   },
   {
@@ -164,6 +178,8 @@ export const groupA: unknown[] = [
         { text: 'Convertible top transmission cables fray and snap', onsetMiles: 100000, typicalCostUsd: 1300, severity: 'expensive' },
       ],
       whatToLookFor: ['Documented IMS bearing replacement, this is the whole inspection', 'S model for the 3.2 engine and larger brakes', 'A pre-purchase inspection by a Porsche specialist, without exception'],
+      packages: [{"name": "S", "years": [2000, 2004], "adds": "3.2 engine, six-speed gearbox, larger brakes, 250 hp", "premiumUsd": 3500}],
+      milestoneServices: [{"atMiles": 40000, "item": "Oil and filter with a magnetic drain plug inspection", "costUsd": 350}, {"atMiles": 70000, "item": "IMS bearing and rear main seal at clutch replacement", "costUsd": 3800}],
     },
   },
   {
@@ -182,6 +198,8 @@ export const groupA: unknown[] = [
         { text: 'PDK mechatronic unit faults', onsetMiles: 100000, typicalCostUsd: 4500, severity: 'expensive' },
       ],
       whatToLookFor: ['2009 and later specifically, the 987.1 has the IMS bearing risk', 'S model with the 3.4 and the sport chrono package', 'Borescope inspection for bore scoring at pre-purchase'],
+      packages: [{"name": "Sport Chrono Package Plus", "adds": "Dynamic engine mounts, sharper throttle map, lap timer", "premiumUsd": 1800}, {"name": "S", "adds": "3.4 engine, 320 hp, larger brakes", "premiumUsd": 4500}],
+      milestoneServices: [{"atMiles": 40000, "item": "PDK fluid and filter service", "costUsd": 900}, {"atMiles": 80000, "item": "Borescope inspection for bore scoring", "costUsd": 400}],
     },
   },
 ];

@@ -19,12 +19,12 @@ const GLYPH: Record<string, typeof Car> = {
   suv: Jeep, truck: Truck, van: Van,
 };
 
-export function VehicleTile({ vehicle }: { vehicle: Vehicle }) {
+export function VehicleTile({ vehicle, withPhoto = false }: { vehicle: Vehicle; withPhoto?: boolean }) {
   const Glyph = GLYPH[vehicle.bodyStyle] ?? Car;
   return (
     <div
       className="relative flex items-center gap-3 overflow-hidden bg-[--bg-shell] px-3 py-2.5"
-      style={{ borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
+      style={withPhoto ? undefined : { borderTopLeftRadius: 'inherit', borderTopRightRadius: 'inherit' }}
     >
       <div className="min-w-0 flex-1">
         <div className="t-label text-[--text-tertiary]">{vehicle.make}</div>
@@ -34,12 +34,16 @@ export function VehicleTile({ vehicle }: { vehicle: Vehicle }) {
           {vehicle.status === 'current' ? ' to now' : `-${vehicle.years[1]}`}
         </div>
       </div>
-      <Glyph
-        weight="regular"
-        aria-hidden
-        size={46}
-        className="shrink-0 text-[--text-primary] opacity-[0.13]"
-      />
+      {/* The glyph stands in for a photograph. With a real one above it, it
+          is decoration, and decoration is the thing this design does least. */}
+      {!withPhoto && (
+        <Glyph
+          weight="regular"
+          aria-hidden
+          size={46}
+          className="shrink-0 text-[--text-primary] opacity-[0.13]"
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import { Star, Warning, Engine, Users, Package, SteeringWheel, Snowflake, Lightning } from '@phosphor-icons/react';
 import type { Match } from '../lib/matching';
@@ -6,6 +6,8 @@ import type { Role } from '../data/types';
 import { formatMiles, formatUsd } from '../lib/pricing';
 import { Chip } from './primitives';
 import { VehicleTile } from './VehicleTile';
+import { VehiclePhoto } from './VehiclePhoto';
+import { heroFor } from '../data/images';
 
 const TRANSMISSION_LABEL: Record<string, string> = {
   manual: 'Manual', automatic: 'Auto', dct: 'DCT', cvt: 'CVT', 'single-speed': 'Single speed',
@@ -18,9 +20,7 @@ function chipsForRole(m: Match, role: Role | null) {
   const power = <Chip key="hp" icon={<Engine size={13} />}>{s.horsepower} hp</Chip>;
   const drive = <Chip key="dt" icon={<SteeringWheel size={13} />}>{s.drivetrain}</Chip>;
   const trans = (
-    <Chip key="tr">
-      {s.transmissions.map((t) => TRANSMISSION_LABEL[t] ?? t).slice(0, 2).join(' / ')}
-    </Chip>
+    <Chip key="tr">{s.transmissions.map((t) => TRANSMISSION_LABEL[t] ?? t).slice(0, 2).join(' / ')}</Chip>
   );
   const seats = <Chip key="st" icon={<Users size={13} />}>{s.seats} seats</Chip>;
   const cargo = s.cargoCuFt ? <Chip key="cg" icon={<Package size={13} />}>{s.cargoCuFt} cu ft</Chip> : null;
@@ -40,30 +40,46 @@ function chipsForRole(m: Match, role: Role | null) {
 }
 
 export const ResultCard = memo(function ResultCard({
-  match, role, starred, onStar, index,
+  match, role, starred, onStar, onOpen, index,
 }: {
   match: Match; role: Role | null; starred: boolean;
-  onStar: () => void; index: number;
+  onStar: () => void; onOpen: (origin: DOMRect) => void; index: number;
 }) {
   const reduce = useReducedMotion();
   const [showCautions, setShowCautions] = useState(false);
+  const ref = useRef<HTMLElement>(null);
   const { vehicle: v, band, atMiles, cautions } = match;
   const worst = cautions[0];
+  const hero = heroFor(v.id);
 
   return (
     <motion.article
+      ref={ref}
       layout={!reduce}
       initial={reduce ? false : { opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: Math.min(index, 8) * 0.04, ease: [0.32, 0.72, 0, 1] }}
-      className="shell"
+      className="shell relative"
       style={{ borderRadius: 20, padding: 6 }}
     >
-      <div className="core overflow-hidden" style={{ borderRadius: 14 }}>
-        <VehicleTile vehicle={v} />
+      <div className="core relative overflow-hidden" style={{ borderRadius: 14 }}>
+        {/* A full-card overlay is the detail click target. Keeping it a sibling
+            of the content, rather than a parent, leaves the star and the
+            caution disclosure as valid, operable controls. */}
+        <button
+          type="button"
+          onClick={() => ref.current && onOpen(ref.current.getBoundingClientRect())}
+          className="absolute inset-0 z-0 cursor-pointer"
+          aria-label={`Details for ${v.make} ${v.model}, ${v.generation}`}
+        />
 
-        <div className="flex flex-col gap-2.5 p-3">
-          <div className="flex items-start justify-between gap-2">
+        <div className="pointer-events-none relative z-10">
+          <VehiclePhoto image={hero} priority={index < 2} />
+          <VehicleTile vehicle={v} withPhoto={!!hero} />
+        </div>
+
+        <div className="relative z-10 flex flex-col gap-2.5 p-3">
+          <div className="pointer-events-none flex items-start justify-between gap-2">
             <div className="min-w-0">
               <div className="num t-h2 text-[--text-primary]">
                 {formatUsd(band.low)}
@@ -80,7 +96,7 @@ export const ResultCard = memo(function ResultCard({
               onClick={onStar}
               aria-pressed={starred}
               aria-label={starred ? `Unlock ${v.make} ${v.model}` : `Lock ${v.make} ${v.model} into this slot`}
-              className="grid h-11 w-11 shrink-0 place-items-center rounded-full transition-transform duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.92]"
+              className="pointer-events-auto grid h-11 w-11 shrink-0 place-items-center rounded-full transition-transform duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.92]"
               style={{
                 background: starred ? 'var(--accent)' : 'var(--bg-shell)',
                 color: starred ? 'var(--accent-on)' : 'var(--text-tertiary)',
@@ -91,7 +107,7 @@ export const ResultCard = memo(function ResultCard({
             </button>
           </div>
 
-          <div className="flex flex-wrap gap-1.5">{chipsForRole(match, role)}</div>
+          <div className="pointer-events-none flex flex-wrap gap-1.5">{chipsForRole(match, role)}</div>
 
           {worst && (
             <div>

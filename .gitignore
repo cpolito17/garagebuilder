@@ -1,5 +1,13 @@
 node_modules/
 dist/
-src/data/generated/
+# Catalog JSON is regenerated from the authored records on every build.
+src/data/generated/*
+# The image manifest is not: it records which file, which licence and which
+# author, and the binaries are re-fetchable from it. It is committed.
+!src/data/generated/images.json
 *.local
 .DS_Store
+
+# Vehicle photography is reproducible from src/data/generated/images.json.
+# 250 vehicles of it is ~100MB of binaries that do not belong in git.
+public/vehicles/

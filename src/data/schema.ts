@@ -77,6 +77,25 @@ export const vehicleSchema = z
       summary: z.string().min(10),
       knownIssues: z.array(issueSchema),
       whatToLookFor: z.array(z.string()),
+      packages: z
+        .array(
+          z.object({
+            name: z.string().min(1),
+            years: z.tuple([z.number(), z.number()]).optional(),
+            adds: z.string().min(4),
+            premiumUsd: z.number().min(0),
+          }),
+        )
+        .optional(),
+      milestoneServices: z
+        .array(
+          z.object({
+            atMiles: z.number().min(0),
+            item: z.string().min(3),
+            costUsd: z.number().min(0),
+          }),
+        )
+        .optional(),
     }),
   })
   .refine((v) => v.years[0] <= v.years[1], {

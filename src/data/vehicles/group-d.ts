@@ -88,6 +88,8 @@ export const groupD: unknown[] = [
         { text: 'Wheel bearings wear early', onsetMiles: 90000, typicalCostUsd: 700, severity: 'annoyance' },
       ],
       whatToLookFor: ['Documented CVT fluid changes, Subaru claims lifetime and it is not', '3.6R six cylinder if you want to avoid the FB25 oil consumption', 'Extended CVT warranty coverage if still in force'],
+      packages: [{"name": "3.6R", "adds": "Six cylinder engine, avoids the FB25 oil consumption complaints", "premiumUsd": 2200}],
+      milestoneServices: [{"atMiles": 60000, "item": "CVT fluid change, despite the lifetime claim", "costUsd": 350}],
     },
   },
   {
@@ -182,6 +184,8 @@ export const groupD: unknown[] = [
         { text: 'Turbo oil feed banjo filter clogs and starves the turbo', onsetMiles: 90000, typicalCostUsd: 1800, severity: 'expensive' },
       ],
       whatToLookFor: ['Unmodified cars with a stock tune and no boost controller', 'STI models for the six-speed and driver controlled centre differential', 'Compression and leakdown test before purchase, without exception'],
+      packages: [{"name": "STI", "years": [2004, 2007], "adds": "Six-speed gearbox, driver controlled centre differential, Brembos, 300 hp", "premiumUsd": 11000}],
+      milestoneServices: [{"atMiles": 30000, "item": "Turbo oil feed banjo filter", "costUsd": 250}, {"atMiles": 100000, "item": "Timing belt, water pump and pulleys", "costUsd": 1100}],
     },
   },
 ];

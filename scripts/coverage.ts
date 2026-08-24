@@ -1,5 +1,5 @@
 import { CATALOG } from '../src/data/catalog';
-import { ROLES } from '../src/data/schema';
+import { ROLES } from '../src/data/types';
 import { findMatches, DEFAULT_FILTERS } from '../src/lib/matching';
 
 console.log('ROLE COVERAGE  (tagged / matches at three budgets, 150k ceiling)');

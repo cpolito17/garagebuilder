@@ -10,7 +10,7 @@
  * records would put roughly 150 kB there.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { vehicleSchema, type Vehicle } from '../src/data/schema';
+import { vehicleSchema, type AuthoredVehicle } from '../src/data/schema';
 import { groupA } from '../src/data/vehicles/group-a';
 import { groupB } from '../src/data/vehicles/group-b';
 import { groupC } from '../src/data/vehicles/group-c';
@@ -21,7 +21,7 @@ import { groupF } from '../src/data/vehicles/group-f';
 const RAW = [...groupA, ...groupB, ...groupC, ...groupD, ...groupE, ...groupF];
 
 const seen = new Set<string>();
-const parsed: Vehicle[] = RAW.map((record, i) => {
+const parsed: AuthoredVehicle[] = RAW.map((record, i) => {
   const r = vehicleSchema.safeParse(record);
   if (!r.success) {
     const id = (record as { id?: string })?.id ?? `index ${i}`;
@@ -44,7 +44,15 @@ const slim = parsed.map((v) => ({
 }));
 
 const details = Object.fromEntries(
-  parsed.map((v) => [v.id, { summary: v.notes.summary, whatToLookFor: v.notes.whatToLookFor }]),
+  parsed.map((v) => [
+    v.id,
+    {
+      summary: v.notes.summary,
+      whatToLookFor: v.notes.whatToLookFor,
+      ...(v.notes.packages?.length ? { packages: v.notes.packages } : {}),
+      ...(v.notes.milestoneServices?.length ? { milestoneServices: v.notes.milestoneServices } : {}),
+    },
+  ]),
 );
 
 mkdirSync('src/data/generated', { recursive: true });

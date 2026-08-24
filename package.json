@@ -11,7 +11,10 @@
     "test": "npm run catalog && vitest run",
     "typecheck": "npm run catalog && tsc -b --noEmit",
     "audit": "node scripts/audit.mjs",
-    "coverage": "vite-node scripts/coverage.ts"
+    "coverage": "vite-node scripts/coverage.ts",
+    "images": "vite-node scripts/fetch-images.ts",
+    "placeholders": "vite-node scripts/dev-placeholders.ts",
+    "images:reset": "node -e \"require('fs').writeFileSync('src/data/generated/images.json','{}')\" && rm -rf public/vehicles"
   },
   "dependencies": {
     "@fontsource-variable/geist": "^5.3.0",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^6.1.0",

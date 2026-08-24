@@ -33,6 +33,8 @@ export const groupC: unknown[] = [
         { text: 'Fuel dilution of engine oil in cold climates and short trips', onsetMiles: 40000, typicalCostUsd: 400, severity: 'annoyance' },
       ],
       whatToLookFor: ['Unmodified examples, these get tuned and abused', 'Summer tyre package if it was optioned', 'Service history showing shortened oil intervals'],
+      packages: [{"name": "Summer Tyre Package", "adds": "Factory 235/40R18 summer tyres, a meaningful difference in grip", "premiumUsd": 400}],
+      milestoneServices: [{"atMiles": 30000, "item": "Oil change interval shortened for fuel dilution", "costUsd": 90}],
     },
   },
   {
@@ -100,6 +102,8 @@ export const groupC: unknown[] = [
         { text: 'DSG mechatronic faults on dual-clutch cars', onsetMiles: 110000, typicalCostUsd: 3200, severity: 'expensive' },
       ],
       whatToLookFor: ['Performance Package for the limited-slip differential and larger brakes', '2018 and later for the higher output and standard equipment', 'DSG service history every 40,000 miles if not manual'],
+      packages: [{"name": "Performance Package", "adds": "VAQ electronic limited-slip differential, larger brakes, 10 extra horsepower", "premiumUsd": 1800}],
+      milestoneServices: [{"atMiles": 40000, "item": "DSG fluid and filter, dual-clutch cars only", "costUsd": 450}, {"atMiles": 90000, "item": "Walnut blasting for intake valve carbon", "costUsd": 900}, {"atMiles": 80000, "item": "Water pump and thermostat housing", "costUsd": 1100}],
     },
   },
   {

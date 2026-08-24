@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { CATALOG, PRICES_AS_OF } from './data/catalog';
 import { ROLE_LABEL, type Role } from './data/types';
-import { findMatches, type Filters } from './lib/matching';
+import { findMatches, type Filters, type Match } from './lib/matching';
 import { formatUsd } from './lib/pricing';
 import { autoAllocate } from './lib/autoAllocate';
 import {
@@ -10,6 +10,9 @@ import {
   type GarageState,
 } from './state/garage';
 import { BudgetBar } from './components/BudgetBar';
+import { DetailModal } from './components/DetailModal';
+import { GarageSummary } from './components/GarageSummary';
+import { byId } from './data/catalog';
 import { SlotColumn } from './components/SlotColumn';
 import { useIsDesktop } from './hooks/useMediaQuery';
 
@@ -17,6 +20,7 @@ export default function App() {
   const [state, setState] = useState<GarageState>(() => initialGarage(50_000, 3));
   const [active, setActive] = useState(0);
   const isDesktop = useIsDesktop();
+  const [detail, setDetail] = useState<{ match: Match; slotId: string; origin: DOMRect } | null>(null);
 
   const alloc = useMemo(() => allocate(state), [state]);
 
@@ -35,6 +39,16 @@ export default function App() {
   );
 
   const update = useCallback((fn: (s: GarageState) => GarageState) => setState(fn), []);
+  const openDetail = useCallback(
+    (slotId: string, match: Match, origin: DOMRect) => setDetail({ match, slotId, origin }),
+    [],
+  );
+  const detailSlot = detail ? state.slots.find((s) => s.id === detail.slotId) : undefined;
+
+  // The summary appears once every slot is locked, because a garage with an
+  // empty slot is not yet a set worth evaluating.
+  const picks = state.slots.map((s) => (s.pick ? byId.get(s.pick) : undefined));
+  const complete = picks.every(Boolean) && picks.length > 0;
 
   const activeSlot = state.slots[Math.min(active, state.slots.length - 1)];
 
@@ -116,7 +130,7 @@ export default function App() {
           <div className="flex gap-5 overflow-x-auto pb-2">
             {state.slots.map((s, i) => (
               <div key={s.id} className="min-w-[320px] flex-1 shrink-0">
-                <SlotColumnFor slot={s} index={i} state={state} alloc={alloc} update={update} />
+                <SlotColumnFor slot={s} index={i} state={state} alloc={alloc} update={update} onOpenDetail={openDetail} />
               </div>
             ))}
           </div>
@@ -128,8 +142,19 @@ export default function App() {
               state={state}
               alloc={alloc}
               update={update}
+              onOpenDetail={openDetail}
             />
           )
+        )}
+
+        {complete && (
+          <div className="mt-8">
+            <GarageSummary
+              picks={picks.filter(Boolean) as NonNullable<(typeof picks)[number]>[]}
+              spend={alloc.total}
+              budget={state.budget}
+            />
+          </div>
         )}
 
         <footer className="mt-12 flex flex-col gap-1 border-t border-[--hairline] pt-5">
@@ -143,18 +168,37 @@ export default function App() {
           </p>
         </footer>
       </main>
+
+      <DetailModal
+        match={detail?.match ?? null}
+        slotBudget={detail ? alloc.perSlot.get(detail.slotId) ?? 0 : 0}
+        slotMaxMiles={detailSlot?.maxMiles ?? 120_000}
+        origin={detail?.origin ?? null}
+        starred={!!detailSlot && detailSlot.pick === detail?.match.vehicle.id}
+        onStar={() => {
+          if (!detail || !detailSlot) return;
+          update((s) =>
+            detailSlot.pick === detail.match.vehicle.id
+              ? unpinSlot(s, detail.slotId)
+              : pinSlot(s, detail.slotId, detail.match.vehicle.id, detail.match.spend),
+          );
+          setDetail(null);
+        }}
+        onClose={() => setDetail(null)}
+      />
     </div>
   );
 }
 
 function SlotColumnFor({
-  slot, index, state, alloc, update,
+  slot, index, state, alloc, update, onOpenDetail,
 }: {
   slot: GarageState['slots'][number];
   index: number;
   state: GarageState;
   alloc: ReturnType<typeof allocate>;
   update: (fn: (s: GarageState) => GarageState) => void;
+  onOpenDetail: (slotId: string, match: Match, origin: DOMRect) => void;
 }) {
   const allocated = alloc.perSlot.get(slot.id) ?? 0;
   return (
@@ -173,6 +217,7 @@ function SlotColumnFor({
       onFilters={(f: Filters) => update((s) => setSlotFilters(s, slot.id, f))}
       onStar={(vehicleId, spend) => update((s) => pinSlot(s, slot.id, vehicleId, spend))}
       onUnstar={() => update((s) => unpinSlot(s, slot.id))}
+      onOpenDetail={(match, origin) => onOpenDetail(slot.id, match, origin)}
     />
   );
 }

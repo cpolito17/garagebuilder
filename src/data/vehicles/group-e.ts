@@ -16,6 +16,8 @@ export const groupE: unknown[] = [
         { text: 'Lower ball joint wear', onsetMiles: 120000, typicalCostUsd: 900, severity: 'annoyance' },
       ],
       whatToLookFor: ['TRD Off-Road for the locking rear differential and crawl control', 'Underbody inspection for frame rust, this is the only real risk', 'KDSS equipped models for on-road body control'],
+      packages: [{"name": "TRD Off-Road", "adds": "Locking rear differential, crawl control, multi-terrain select", "premiumUsd": 3200}, {"name": "KDSS", "adds": "Hydraulic sway bar disconnection, better on road and off", "premiumUsd": 1600}],
+      milestoneServices: [{"atMiles": 100000, "item": "Lower ball joints", "costUsd": 900}, {"atMiles": 120000, "item": "Underbody and frame corrosion inspection", "costUsd": 200}],
     },
   },
   {
@@ -35,6 +37,8 @@ export const groupE: unknown[] = [
         { text: 'Water leaks around the roof and door seals', onsetMiles: 0, typicalCostUsd: 400, severity: 'annoyance' },
       ],
       whatToLookFor: ['2012 and later for the 3.6 Pentastar over the 3.8', 'Rubicon for factory lockers, disconnecting sway bar, and 4:1 transfer case', 'Unlimited four door body unless you never carry passengers'],
+      packages: [{"name": "Rubicon", "adds": "Front and rear lockers, disconnecting front sway bar, 4:1 transfer case, 32 inch tyres", "premiumUsd": 5500}],
+      milestoneServices: [{"atMiles": 90000, "item": "Steering damper, track bar and tie rod ends", "costUsd": 1200}],
     },
   },
   {
@@ -53,6 +57,8 @@ export const groupE: unknown[] = [
         { text: 'eTorque mild hybrid system faults', onsetMiles: 70000, typicalCostUsd: 2200, severity: 'expensive' },
       ],
       whatToLookFor: ['Rubicon for lockers and the disconnecting front sway bar', 'Revised steering damper already fitted', '2.0 turbo for torque, 3.6 for simplicity'],
+      packages: [{"name": "Rubicon", "adds": "Front and rear lockers, disconnecting sway bar, 4:1 transfer case, 33 inch tyres", "premiumUsd": 7000}],
+      milestoneServices: [{"atMiles": 40000, "item": "Revised steering damper", "costUsd": 600}],
     },
   },
   {
@@ -72,6 +78,8 @@ export const groupE: unknown[] = [
         { text: 'Frame rust on salted-road cars', onsetMiles: 180000, typicalCostUsd: 4500, severity: 'car-ending' },
       ],
       whatToLookFor: ['Timing belt service history every 90,000 miles', 'Locking centre differential and factory lockers on earlier cars', 'Southern and western cars for frame condition'],
+      packages: [{"name": "Locking differentials", "years": [1998, 2002], "adds": "Factory front and rear lockers, only on early cars", "premiumUsd": 3000}],
+      milestoneServices: [{"atMiles": 90000, "item": "Timing belt, water pump and tensioner", "costUsd": 1200}, {"atMiles": 150000, "item": "Starter motor, sits under the intake manifold", "costUsd": 1400}],
     },
   },
   {
@@ -91,6 +99,8 @@ export const groupE: unknown[] = [
         { text: 'Birfield joint wear in the front axle', onsetMiles: 180000, typicalCostUsd: 1600, severity: 'expensive' },
       ],
       whatToLookFor: ['1993 to 1997 with factory front and rear lockers, the desirable configuration', 'Rust free frame, this decides the entire purchase', 'Documented head gasket work'],
+      packages: [{"name": "Factory triple locked", "years": [1993, 1997], "adds": "Front, centre and rear differential locks, the configuration to find", "premiumUsd": 6000}],
+      milestoneServices: [{"atMiles": 150000, "item": "Birfield joint repack or replacement", "costUsd": 1600}, {"atMiles": 200000, "item": "Head gasket, usually after an overheat", "costUsd": 3500}],
     },
   },
   {
@@ -110,6 +120,8 @@ export const groupE: unknown[] = [
         { text: 'Frame rust on salted-road cars', onsetMiles: 170000, typicalCostUsd: 4000, severity: 'car-ending' },
       ],
       whatToLookFor: ['Coil spring conversion already performed on the rear air suspension', 'Documented timing belt and water pump service', 'Locking centre differential, standard on this generation'],
+      packages: [{"name": "Adaptive Variable Suspension", "adds": "Adjustable damping, an extra failure point over the coil conversion", "premiumUsd": 800}],
+      milestoneServices: [{"atMiles": 90000, "item": "Timing belt, water pump and tensioner", "costUsd": 1200}, {"atMiles": 150000, "item": "Rear air spring to coil conversion", "costUsd": 1300}],
     },
   },
   {
@@ -164,6 +176,8 @@ export const groupE: unknown[] = [
         { text: 'Leaf spring failure and rear axle wrap', onsetMiles: 150000, typicalCostUsd: 900, severity: 'annoyance' },
       ],
       whatToLookFor: ['Frame inspection documentation or a replaced frame under the programme', 'TRD Off-Road for the locking rear differential', 'Access cab manual 4x4 is the enthusiast configuration'],
+      packages: [{"name": "TRD Off-Road", "adds": "Locking rear differential, Bilstein dampers, skid plates", "premiumUsd": 2800}],
+      milestoneServices: [{"atMiles": 150000, "item": "Frame inspection under the Toyota programme", "costUsd": 0}, {"atMiles": 120000, "item": "Rear leaf springs", "costUsd": 900}],
     },
   },
   {

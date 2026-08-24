@@ -17,6 +17,8 @@ export const groupB: unknown[] = [
         { text: 'Leaking rear transaxle and differential seals', onsetMiles: 100000, typicalCostUsd: 1100, severity: 'expensive' },
       ],
       whatToLookFor: ['Z51 performance handling package', '2001 and later for the LS6-derived improvements to the LS1', 'Verify the column lock has been bypassed or replaced'],
+      packages: [{"name": "Z51 Performance Handling", "adds": "Stiffer springs and bars, larger brakes, extra cooling", "premiumUsd": 1600}],
+      milestoneServices: [{"atMiles": 100000, "item": "Harmonic balancer and serpentine system", "costUsd": 900}],
     },
   },
   {
@@ -35,6 +37,8 @@ export const groupB: unknown[] = [
         { text: 'Steering column lock and hatch strut failures', onsetMiles: 90000, typicalCostUsd: 700, severity: 'annoyance' },
       ],
       whatToLookFor: ['2008 and later for the 6.2 LS3 over the 6.0 LS2', 'Z51 package for cooling, brakes, and gearing', 'Magnetic Ride Control if you want it to be a grand tourer'],
+      packages: [{"name": "Z51 Performance", "adds": "Stiffer suspension, larger brakes, dry sump on some cars, extra cooling", "premiumUsd": 2600}, {"name": "Magnetic Selective Ride Control", "adds": "Magnetorheological dampers, transforms it into a grand tourer", "premiumUsd": 1900}],
+      milestoneServices: [{"atMiles": 90000, "item": "Valve spring inspection, more urgent on tracked cars", "costUsd": 1600}],
     },
   },
   {
@@ -53,6 +57,8 @@ export const groupB: unknown[] = [
         { text: 'MT82 manual transmission notchiness and lockout on 2011 and later cars', onsetMiles: 60000, typicalCostUsd: 2800, severity: 'expensive' },
       ],
       whatToLookFor: ['2011 and later for the Coyote 5.0, this is the whole decision', 'Brembo brake package', 'Evidence it was not drag raced, check the axle and driveshaft'],
+      packages: [{"name": "Brembo Brake Package", "years": [2011, 2014], "adds": "Four-piston front Brembos, 19 inch wheels, stiffer springs", "premiumUsd": 1500}, {"name": "Track Pack", "years": [2012, 2014], "adds": "Torsen differential, 3.73 axle, extra coolers, Brembos", "premiumUsd": 2800}],
+      milestoneServices: [{"atMiles": 100000, "item": "Clutch and rear axle service", "costUsd": 1800}],
     },
   },
   {
@@ -72,6 +78,8 @@ export const groupB: unknown[] = [
         { text: 'Rear subframe mounting points tear the floor on track-used cars', onsetMiles: 120000, typicalCostUsd: 3500, severity: 'car-ending' },
       ],
       whatToLookFor: ['Documented cooling system overhaul and VANOS rebuild', 'Rear subframe reinforcement already performed', 'Luxury package cars are usually less abused than lightweight ones'],
+      packages: [{"name": "Luxury Package", "adds": "Leather, power seats, usually a gentler life than a lightweight car", "premiumUsd": 900}],
+      milestoneServices: [{"atMiles": 80000, "item": "Full cooling system overhaul, all plastic parts", "costUsd": 1400}, {"atMiles": 100000, "item": "VANOS rebuild", "costUsd": 1500}],
     },
   },
   {
@@ -91,6 +99,8 @@ export const groupB: unknown[] = [
         { text: 'VANOS solenoid and hub bolt failures', onsetMiles: 100000, typicalCostUsd: 1800, severity: 'expensive' },
       ],
       whatToLookFor: ['Documented rod bearing replacement with receipts', 'Subframe inspected and reinforced', 'Manual over SMG unless the SMG pump has been replaced'],
+      packages: [{"name": "Competition Package (ZCP)", "years": [2005, 2006], "adds": "Larger front brakes, quicker steering rack, CSL wheels, stiffer suspension", "premiumUsd": 6500}],
+      milestoneServices: [{"atMiles": 60000, "item": "Rod bearing replacement, treated as scheduled maintenance", "costUsd": 3500}, {"atMiles": 90000, "item": "Rear subframe inspection and reinforcement", "costUsd": 4000}, {"atMiles": 50000, "item": "Inspection II with valve adjustment", "costUsd": 1200}],
     },
   },
   {
@@ -110,6 +120,8 @@ export const groupB: unknown[] = [
         { text: 'DCT mechatronic and clutch pack service', onsetMiles: 90000, typicalCostUsd: 4000, severity: 'expensive' },
       ],
       whatToLookFor: ['Rod bearings done, ideally with the updated part', 'Competition Package for the suspension and steering rack', 'Throttle actuators already replaced'],
+      packages: [{"name": "Competition Package", "years": [2011, 2013], "adds": "Lower ride height, revised EDC tuning, 19 inch wheels, quicker steering", "premiumUsd": 4200}],
+      milestoneServices: [{"atMiles": 60000, "item": "Rod bearing replacement with the updated part", "costUsd": 4500}, {"atMiles": 90000, "item": "DCT clutch pack and mechatronic service", "costUsd": 4000}],
     },
   },
   {
@@ -128,6 +140,8 @@ export const groupB: unknown[] = [
         { text: 'Timing chain cover oil leak, labour intensive to reach', onsetMiles: 130000, typicalCostUsd: 2800, severity: 'expensive' },
       ],
       whatToLookFor: ['Coil sprung cars over air suspension unless it is documented as replaced', 'Mark Levinson audio and the executive rear seat package', 'Full Lexus service history, these were dealer maintained'],
+      packages: [{"name": "Executive Package", "adds": "Reclining rear seats with massage, rear entertainment, refrigerator", "premiumUsd": 2500}],
+      milestoneServices: [{"atMiles": 100000, "item": "Suspension air struts, air-equipped cars", "costUsd": 3200}, {"atMiles": 120000, "item": "Timing chain cover reseal", "costUsd": 2800}],
     },
   },
   {
@@ -167,6 +181,8 @@ export const groupB: unknown[] = [
         { text: 'Front differential and transfer case wear on 4Matic cars', onsetMiles: 110000, typicalCostUsd: 4200, severity: 'expensive' },
       ],
       whatToLookFor: ['S-Model for the higher output and the electronic rear differential', 'Documented turbo oil line service', 'Complete Mercedes service history, not independent gaps'],
+      packages: [{"name": "S-Model", "years": [2014, 2016], "adds": "577 hp, electronic rear differential, 4Matic as standard", "premiumUsd": 7000}],
+      milestoneServices: [{"atMiles": 60000, "item": "Turbo oil feed lines", "costUsd": 1400}, {"atMiles": 80000, "item": "Transmission fluid and conductor plate", "costUsd": 1600}],
     },
   },
   {
@@ -185,6 +201,8 @@ export const groupB: unknown[] = [
         { text: 'Toyota 2ZZ lift bolt failure prevents the high cam lobe engaging', onsetMiles: 70000, typicalCostUsd: 900, severity: 'expensive' },
       ],
       whatToLookFor: ['Supercharged SC models for meaningful mid-range torque', 'Touring pack if you intend to drive it on roads', 'Lift bolt already replaced with the updated part'],
+      packages: [{"name": "Touring Pack", "adds": "Carpets, sound insulation, leather, makes it road usable", "premiumUsd": 1500}, {"name": "Supercharged (SC)", "years": [2008, 2011], "adds": "218 hp with real mid-range torque", "premiumUsd": 8000}],
+      milestoneServices: [{"atMiles": 70000, "item": "Lift bolt replacement with the updated part", "costUsd": 900}],
     },
   },
 ];

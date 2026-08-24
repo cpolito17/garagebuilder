@@ -3,19 +3,20 @@ import { AnimatePresence } from 'motion/react';
 import { LockOpen } from '@phosphor-icons/react';
 import { CATALOG } from '../data/catalog';
 import { ROLES, ROLE_LABEL, type Role } from '../data/types';
-import { findMatches, explainEmpty, type Filters } from '../lib/matching';
+import { findMatches, explainEmpty, type Filters, type Match } from '../lib/matching';
 import { formatUsd } from '../lib/pricing';
 import type { SlotState } from '../state/garage';
 import { AllocationSlider } from './AllocationSlider';
 import { MileageDial } from './MileageDial';
 import { ResultCard } from './ResultCard';
 import { EmptyState } from './EmptyState';
+import { FilterPanel } from './FilterPanel';
 
 const RESULT_LIMIT = 12;
 
 export function SlotColumn({
   slot, index, budget, allocated, headroom, minSlot, over,
-  onBudgetChange, onBudgetCommit, onRole, onMaxMiles, onFilters, onStar, onUnstar,
+  onBudgetChange, onBudgetCommit, onRole, onMaxMiles, onFilters, onStar, onUnstar, onOpenDetail,
 }: {
   slot: SlotState;
   index: number;
@@ -31,6 +32,7 @@ export function SlotColumn({
   onFilters: (f: Filters) => void;
   onStar: (vehicleId: string, spend: number) => void;
   onUnstar: () => void;
+  onOpenDetail: (match: Match, origin: DOMRect) => void;
 }) {
   const list = useMemo(
     () => findMatches(CATALOG, {
@@ -44,8 +46,6 @@ export function SlotColumn({
   const empty = explainEmpty(list, {
     budget: allocated, role: slot.role, maxMiles: slot.maxMiles, filters: slot.filters,
   });
-
-  const manualOnly = slot.filters.transmissions.includes('manual');
 
   return (
     <section
@@ -93,18 +93,13 @@ export function SlotColumn({
           {!slot.pinned && (
             <>
               <MileageDial value={slot.maxMiles} onChange={onMaxMiles} />
-              <label className="flex min-h-11 cursor-pointer items-center gap-2.5 t-small text-[--text-secondary]">
-                <input
-                  type="checkbox"
-                  checked={manualOnly}
-                  onChange={(e) =>
-                    onFilters({ ...slot.filters, transmissions: e.target.checked ? ['manual'] : [] })
-                  }
-                  className="h-4 w-4"
-                  style={{ accentColor: 'var(--accent)' }}
-                />
-                Manual transmission only
-              </label>
+              <FilterPanel
+                filters={slot.filters}
+                role={slot.role}
+                budget={allocated}
+                maxMiles={slot.maxMiles}
+                onChange={onFilters}
+              />
             </>
           )}
         </div>
@@ -136,6 +131,7 @@ export function SlotColumn({
                 index={i}
                 starred={slot.pick === m.vehicle.id}
                 onStar={() => (slot.pick === m.vehicle.id ? onUnstar() : onStar(m.vehicle.id, m.spend))}
+                onOpen={(origin) => onOpenDetail(m, origin)}
               />
             ))}
           </AnimatePresence>

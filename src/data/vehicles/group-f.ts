@@ -17,6 +17,8 @@ export const groupF: unknown[] = [
         { text: 'Aluminium body panel repair costs more than steel at most shops', onsetMiles: 0, typicalCostUsd: 0, severity: 'expensive' },
       ],
       whatToLookFor: ['Max Tow package with the integrated brake controller and 3.55 or 3.73 axle', '2018 and later for the 10-speed and updated EcoBoost', 'Documented cam phaser work on 5.0 trucks'],
+      packages: [{"name": "Max Tow Package", "adds": "Integrated brake controller, 3.55 or 3.73 axle, extra cooling, 13,200 lb rating", "premiumUsd": 2200}, {"name": "FX4 Off-Road", "adds": "Skid plates, off-road tuned dampers, electronic locking rear differential", "premiumUsd": 1400}],
+      milestoneServices: [{"atMiles": 90000, "item": "Cam phasers on 5.0 Coyote trucks", "costUsd": 3200}, {"atMiles": 100000, "item": "Spark plugs and coils on EcoBoost trucks", "costUsd": 700}],
     },
   },
   {
@@ -55,6 +57,8 @@ export const groupF: unknown[] = [
         { text: 'Air injection pump failure on early trucks', onsetMiles: 130000, typicalCostUsd: 2400, severity: 'expensive' },
       ],
       whatToLookFor: ['Frame inspection documentation on 2007 to 2010 trucks', 'TRD Off-Road or the 1794 trim depending on intent', '2014 and later facelift for the improved interior'],
+      packages: [{"name": "TRD Off-Road", "adds": "Bilstein dampers, skid plates, off-road tuned suspension", "premiumUsd": 2000}],
+      milestoneServices: [{"atMiles": 140000, "item": "Cam tower reseal", "costUsd": 3000}, {"atMiles": 100000, "item": "Spark plugs, all eight", "costUsd": 500}],
     },
   },
   {
@@ -74,6 +78,8 @@ export const groupF: unknown[] = [
         { text: 'Diesel exhaust fluid system faults immobilise the truck', onsetMiles: 120000, typicalCostUsd: 1800, severity: 'expensive' },
       ],
       whatToLookFor: ['CP4 disaster prevention kit or a converted CP3 pump already fitted', '2015 and later for the higher output calibration', 'Full service history, diesel neglect is expensive'],
+      packages: [{"name": "CP4 disaster prevention kit", "adds": "Filtration and bypass that stops a pump failure destroying the fuel system", "premiumUsd": 1200}],
+      milestoneServices: [{"atMiles": 100000, "item": "Fuel filters, both, and injector inspection", "costUsd": 400}, {"atMiles": 140000, "item": "EGR cooler and turbo inspection", "costUsd": 2400}],
     },
   },
   {
