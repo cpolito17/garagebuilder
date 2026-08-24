@@ -4,7 +4,7 @@ import { m, useReducedMotion } from 'motion/react';
 import { CATALOG, PRICES_AS_OF, byId } from '../data/catalog';
 import { ROLE_LABEL } from '../data/types';
 import { findMatches } from '../lib/matching';
-import { formatMiles, formatUsd, milesAffordable, plausibleMinMiles, priceRange } from '../lib/pricing';
+import { estimatedPrice, formatMiles, formatUsd, milesAffordable, plausibleMinMiles } from '../lib/pricing';
 import { allocate, initialGarage, pinSlot, setSlotBudget, MIN_SLOT, type GarageState } from '../state/garage';
 import { AllocationSlider } from './AllocationSlider';
 import { Shell } from './primitives';
@@ -196,7 +196,7 @@ function Curve() {
   const steps = CURVE_BUDGETS.map((budget, i) => {
     const raw = milesAffordable(vehicle.pricing, budget) ?? 0;
     const miles = Math.max(plausibleMinMiles(vehicle.years[1]), raw);
-    return { budget, miles, band: priceRange(vehicle.pricing, miles), span: SPANS[i]! };
+    return { budget, miles, price: estimatedPrice(vehicle.pricing, miles), span: SPANS[i]! };
   });
 
   return (
@@ -221,8 +221,7 @@ function Curve() {
                 <span className="num t-h1 text-[--text-primary]">{formatUsd(step.budget)}</span>
                 <span className="num t-h3 text-[--accent]">{formatMiles(step.miles)}</span>
                 <span className="t-small mt-auto pt-4 text-[--text-tertiary]">
-                  Asking <span className="num">{formatUsd(step.band.low)}</span> to{' '}
-                  <span className="num">{formatUsd(step.band.high)}</span> at that odometer
+                  Estimated price <span className="num">{formatUsd(step.price)}</span> at that odometer
                 </span>
               </div>
             </Shell>

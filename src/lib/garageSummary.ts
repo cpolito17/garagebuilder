@@ -28,13 +28,14 @@ export type GarageSummary = {
   annualMaintenanceUsd: number;
   annualFuelUsd: number;
   combinedHorsepower: number;
-  pedals: number;
+  manualCars: number;
   countries: number;
 };
 
 const PETROL_PER_GALLON = 3.4;
+const DIESEL_PER_GALLON = 3.75;
 const ELECTRIC_PER_KWH = 0.17;
-const MILES_PER_YEAR = 12_000;
+const GARAGE_MILES_PER_YEAR = 12_000;
 
 const CAPABILITIES: { id: string; label: string; test: (v: Vehicle) => boolean }[] = [
   { id: 'four-up', label: 'Carry four people', test: (v) => v.spec.seats >= 4 },
@@ -51,8 +52,18 @@ const ORIGIN: Record<string, string> = {
   Mazda: 'JP', Toyota: 'JP', Honda: 'JP', Nissan: 'JP', Subaru: 'JP', Lexus: 'JP',
   BMW: 'DE', 'Mercedes-AMG': 'DE', Volkswagen: 'DE', Audi: 'DE', Porsche: 'DE',
   Ford: 'US', Chevrolet: 'US', Chrysler: 'US', Ram: 'US', Jeep: 'US', Tesla: 'US',
-  Volvo: 'SE', Lotus: 'GB',
+  Cadillac: 'US', Dodge: 'US', GMC: 'US', Lincoln: 'US', Mercury: 'US', Pontiac: 'US',
+  Acura: 'JP', Infiniti: 'JP', Isuzu: 'JP', Mitsubishi: 'JP', Suzuki: 'JP',
+  'Alfa Romeo': 'IT',
+  'Mercedes-Benz': 'DE', Mini: 'DE',
+  Genesis: 'KR', Hyundai: 'KR', Kia: 'KR',
+  Volvo: 'SE', Saab: 'SE',
+  Lotus: 'GB', Jaguar: 'GB', 'Land Rover': 'GB',
 };
+
+export function originCountry(make: string): string | undefined {
+  return ORIGIN[make];
+}
 
 export function summarise(picks: Vehicle[]): GarageSummary {
   const capabilities: Capability[] = [];
@@ -80,14 +91,16 @@ export function summarise(picks: Vehicle[]): GarageSummary {
     }
   }
 
+  const milesPerVehicle = picks.length > 0 ? GARAGE_MILES_PER_YEAR / picks.length : 0;
   const annualFuelUsd = Math.round(
     picks.reduce((sum, v) => {
       if (v.spec.fuel === 'ev') {
         // MPGe converts back to kWh via the EPA's 33.7 kWh per gallon equivalent.
-        const kwh = (MILES_PER_YEAR / v.spec.mpgCombined) * 33.7;
+        const kwh = (milesPerVehicle / v.spec.mpgCombined) * 33.7;
         return sum + kwh * ELECTRIC_PER_KWH;
       }
-      return sum + (MILES_PER_YEAR / v.spec.mpgCombined) * PETROL_PER_GALLON;
+      const gallonPrice = v.spec.fuel === 'diesel' ? DIESEL_PER_GALLON : PETROL_PER_GALLON;
+      return sum + (milesPerVehicle / v.spec.mpgCombined) * gallonPrice;
     }, 0),
   );
 
@@ -98,7 +111,7 @@ export function summarise(picks: Vehicle[]): GarageSummary {
     annualMaintenanceUsd: picks.reduce((a, v) => a + v.ownership.annualMaintenanceUsd, 0),
     annualFuelUsd,
     combinedHorsepower: picks.reduce((a, v) => a + v.spec.horsepower, 0),
-    pedals: picks.reduce((a, v) => a + (v.spec.transmissions.includes('manual') ? 3 : 2), 0),
-    countries: new Set(picks.map((v) => ORIGIN[v.make] ?? v.make)).size,
+    manualCars: picks.filter((v) => v.spec.transmissions.includes('manual')).length,
+    countries: new Set(picks.map((v) => originCountry(v.make)).filter(Boolean)).size,
   };
 }

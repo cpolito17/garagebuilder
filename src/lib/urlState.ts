@@ -1,7 +1,11 @@
 import { ROLE_ORDER } from '../data/codec';
 import type { Role } from '../data/types';
 import { DEFAULT_FILTERS, type Filters } from './matching';
-import { DEFAULT_MAX_MILES, MIN_SLOT, type GarageState, type SlotState } from '../state/garage';
+import {
+  DEFAULT_MAX_MILES, distributeExact, makeSlot, MIN_SLOT,
+  type GarageState, type SlotState,
+} from '../state/garage';
+import { ROLE_WEIGHT } from '../data/types';
 
 /**
  * The garage lives in the URL. docs/DATA-MODEL.md section 9.
@@ -163,7 +167,11 @@ export function readGarageFromLocation(search = window.location.search): GarageS
 export function writeGarageToLocation(state: GarageState): void {
   const params = new URLSearchParams(window.location.search);
   params.set(STATE_PARAM, encodeGarage(state));
-  window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
+  window.history.replaceState(
+    { garageBuilder: true },
+    '',
+    `${window.location.pathname}?${params.toString()}${window.location.hash}`,
+  );
 }
 
 export function shareUrlFor(state: GarageState, origin = window.location.origin + window.location.pathname): string {
@@ -177,13 +185,13 @@ export function shareUrlFor(state: GarageState, origin = window.location.origin 
  * is a game with a move to make.
  */
 export function challengeFrom(state: GarageState): GarageState {
+  const shares = distributeExact(
+    state.budget,
+    state.slots.map((slot) => (slot.role ? ROLE_WEIGHT[slot.role] : 1)),
+    MIN_SLOT,
+  );
   return {
     budget: state.budget,
-    slots: state.slots.map((slot) => ({
-      ...slot,
-      id: `slot-c${++slotSeq}`,
-      pinned: false,
-      pick: null,
-    })),
+    slots: state.slots.map((slot, index) => makeSlot(slot.role, shares[index]!)),
   };
 }

@@ -8,7 +8,7 @@ import type { PriceCurve } from '../data/types';
  * under a budget, it asks what odometer each car requires at that budget.
  */
 
-export const CURRENT_YEAR = 2026;
+export const CURRENT_YEAR = new Date().getFullYear();
 
 /** Highest odometer a vehicle could plausibly have covered given its age. */
 export function plausibleMaxMiles(firstYear: number, currentYear = CURRENT_YEAR): number {
@@ -36,14 +36,30 @@ export function plausibleMinMiles(lastYear: number, currentYear = CURRENT_YEAR):
  * backwards to delivery mileage cannot produce an absurd garage-queen price.
  */
 export function priceAtMiles(c: PriceCurve, miles: number): number {
+  const boundedMiles = Math.max(0, miles);
+
+  // Current generations need two anchors. MSRP is the price at delivery,
+  // while base is the observed used price at baselineMiles. Interpolating
+  // between them prevents a used-car decay curve from inventing a discounted
+  // "new" car, then the normal decay curve takes over beyond the baseline.
+  if (
+    c.msrpNew !== undefined &&
+    c.baselineMiles > 0 &&
+    boundedMiles <= c.baselineMiles &&
+    c.msrpNew >= c.base
+  ) {
+    if (c.msrpNew === c.base) return c.base;
+    return c.msrpNew * Math.pow(c.base / c.msrpNew, boundedMiles / c.baselineMiles);
+  }
+
   const raw =
-    c.floor + (c.base - c.floor) * Math.pow(1 - c.decay, (miles - c.baselineMiles) / 10_000);
+    c.floor + (c.base - c.floor) * Math.pow(1 - c.decay, (boundedMiles - c.baselineMiles) / 10_000);
   return Math.min(raw, c.base * c.lowMileCap);
 }
 
 /** The most this vehicle costs at any odometer, which is its price at delivery. */
 export function ceilingPrice(c: PriceCurve): number {
-  return priceAtMiles(c, 0);
+  return c.msrpNew ?? priceAtMiles(c, 0);
 }
 
 /**
@@ -57,6 +73,18 @@ export function milesAffordable(c: PriceCurve, budget: number): number | null {
   if (budget <= c.floor) return null;
   if (budget >= ceilingPrice(c)) return 0;
 
+  if (
+    c.msrpNew !== undefined &&
+    c.baselineMiles > 0 &&
+    c.msrpNew > c.base &&
+    budget >= c.base
+  ) {
+    return (
+      c.baselineMiles * Math.log(budget / c.msrpNew) /
+      Math.log(c.base / c.msrpNew)
+    );
+  }
+
   const raw =
     c.baselineMiles +
     (10_000 * Math.log((budget - c.floor) / (c.base - c.floor))) / Math.log(1 - c.decay);
@@ -64,16 +92,12 @@ export function milesAffordable(c: PriceCurve, budget: number): number | null {
   return Math.max(0, raw);
 }
 
-export type PriceBand = { low: number; mid: number; high: number };
-
-/** Never display a single-point price. The range is honest and it reads better. */
-export function priceRange(c: PriceCurve, miles: number): PriceBand {
-  const mid = priceAtMiles(c, miles);
-  return {
-    low: roundTo(mid * (1 - c.spread), 250),
-    mid: roundTo(mid, 250),
-    high: roundTo(mid * (1 + c.spread), 250),
-  };
+/**
+ * The one price shown and locked by the UI. Estimates round down to the
+ * nearest $250 so a result never consumes more than the budget that found it.
+ */
+export function estimatedPrice(c: PriceCurve, miles: number): number {
+  return Math.max(250, Math.floor(priceAtMiles(c, miles) / 250) * 250);
 }
 
 export function roundTo(n: number, step: number): number {

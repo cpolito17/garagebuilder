@@ -56,7 +56,7 @@ export function previewFor(stateParam: string | null): Preview {
   const listed = names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
   const description =
     `${listed}. ${fmt(spend)} spent, ` +
-    `${s.combinedHorsepower.toLocaleString()} hp, ${s.pedals} pedals. ` +
+    `${s.combinedHorsepower.toLocaleString()} hp, ${s.manualCars} manual-equipped. ` +
     `Same budget, same slots. Do better.`;
 
   return { title, description, specific: true };

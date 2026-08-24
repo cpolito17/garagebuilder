@@ -345,7 +345,7 @@ Densest surface in the product.
 - Nested shell, `20px` outer.
 - Image or typographic tile at 16:10, fixed aspect ratio reserved before load so
   CLS stays at zero.
-- Title in `h3`. Price range and implied odometer in mono, same baseline, price
+- Title in `h3`. Estimated price and implied odometer in mono, same baseline, price
   at full weight and odometer at `--text-secondary`.
 - Three role-selected spec chips, `10px` radius, hairline border, no fill.
 - Caution marker: amber dot plus label, expands in place. Never blocks the star.

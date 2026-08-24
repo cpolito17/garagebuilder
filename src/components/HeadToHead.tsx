@@ -25,7 +25,7 @@ export function HeadToHead({
   const rows: { label: string; a: string; b: string }[] = [
     { label: 'Spent', a: formatUsd(rivalSpend), b: formatUsd(mineSpend) },
     { label: 'Combined power', a: `${rivalSummary.combinedHorsepower.toLocaleString()} hp`, b: `${mineSummary.combinedHorsepower.toLocaleString()} hp` },
-    { label: 'Pedals', a: String(rivalSummary.pedals), b: String(mineSummary.pedals) },
+    { label: 'Manual-equipped', a: String(rivalSummary.manualCars), b: String(mineSummary.manualCars) },
     { label: 'Countries', a: String(rivalSummary.countries), b: String(mineSummary.countries) },
     { label: 'Capabilities covered', a: `${rivalSummary.capabilities.length} of ${rivalSummary.capabilities.length + rivalSummary.gaps.length}`, b: `${mineSummary.capabilities.length} of ${mineSummary.capabilities.length + mineSummary.gaps.length}` },
     { label: 'Running cost a year', a: formatUsd(rivalSummary.annualMaintenanceUsd + rivalSummary.annualFuelUsd), b: formatUsd(mineSummary.annualMaintenanceUsd + mineSummary.annualFuelUsd) },

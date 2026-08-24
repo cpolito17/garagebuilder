@@ -35,6 +35,7 @@ function env(): Env {
             'content-length': String(HTML.length),
             etag: '"index"',
             'content-encoding': 'gzip',
+            'x-asset-version': 'fixture',
           },
         });
       },
@@ -89,6 +90,15 @@ describe('worker', () => {
     expect(res.headers.get('content-length')).toBeNull();
     expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
     expect(res.headers.get('cache-control')).toContain('s-maxage=3600');
+    expect(res.headers.get('x-asset-version')).toBe('fixture');
+    expect(res.headers.get('content-security-policy')).toContain("frame-ancestors 'none'");
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+  });
+
+  it('serves HEAD without a response body', async () => {
+    const res = await worker.fetch(new Request('https://garage.test/', { method: 'HEAD' }), env());
+    expect(await res.text()).toBe('');
+    expect(res.headers.get('content-security-policy')).toBeTruthy();
   });
 
   it('passes non-html straight through untouched', async () => {

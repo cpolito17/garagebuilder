@@ -51,7 +51,7 @@ describe('preview generation', () => {
     const p = previewFor(encodeGarage(finishedGarage()));
     expect(p.description).toMatch(/\$50,000 spent/);
     expect(p.description).toMatch(/\d+ hp/);
-    expect(p.description).toMatch(/\d+ pedals/);
+    expect(p.description).toMatch(/\d+ manual-equipped/);
     expect(p.description).toContain('Do better');
   });
 

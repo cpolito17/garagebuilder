@@ -90,7 +90,7 @@ discount. That per-car tuning is the catalog's whole value.
 | Icons | `@phosphor-icons/react` | One family, `weight="regular"`. |
 | Fonts | Geist + Geist Mono, self-hosted | Tabular figures. The interface is mostly numbers. |
 | Validation | Zod | Catalog records validate at build time. A bad record fails the build. |
-| State | URL, base64url of deflated JSON | No backend, no accounts. The link is the save file and the distribution model. |
+| State | URL, base64url-encoded compact JSON | No backend, no accounts. The link is the save file and the distribution model. |
 | Hosting | Cloudflare Workers static assets | Static, plus one Worker for link previews. |
 
 Everything the user builds lives in `?g=`. There is nothing to log into and

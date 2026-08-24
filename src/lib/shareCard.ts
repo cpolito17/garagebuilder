@@ -43,6 +43,7 @@ export type CardInput = {
   picks: (Vehicle | undefined)[];
   spend: number;
   shareUrl: string;
+  rival?: GarageState;
 };
 
 /** Canvas has no border-radius primitive worth the name before roundRect. */
@@ -167,11 +168,18 @@ function drawStory(ctx: CanvasRenderingContext2D, input: CardInput, w: number, h
 
   // A number you did not know about yourself.
   const statsY = h - 380;
-  const stats: [string, string][] = [
-    ['SPENT', formatUsd(spend)],
-    ['POWER', `${s.combinedHorsepower.toLocaleString()} hp`],
-    ['PEDALS', String(s.pedals)],
-  ];
+  const rivalSpend = input.rival?.slots.reduce((sum, slot) => sum + slot.target, 0);
+  const stats: [string, string][] = input.rival
+    ? [
+        ['THEIRS', formatUsd(rivalSpend ?? 0)],
+        ['YOURS', formatUsd(spend)],
+        ['YOUR POWER', `${s.combinedHorsepower.toLocaleString()} hp`],
+      ]
+    : [
+        ['SPENT', formatUsd(spend)],
+        ['POWER', `${s.combinedHorsepower.toLocaleString()} hp`],
+        ['MANUALS', String(s.manualCars)],
+      ];
   const colW = inner / stats.length;
   stats.forEach(([label, value], i) => {
     const x = pad + i * colW;
@@ -190,7 +198,11 @@ function drawStory(ctx: CanvasRenderingContext2D, input: CardInput, w: number, h
   ctx.textAlign = 'center';
   ctx.font = `600 42px ${SANS}`;
   ctx.fillStyle = IN.bg;
-  ctx.fillText(`Beat my ${formatUsd(state.budget)} garage`, w / 2, h - 222);
+  ctx.fillText(
+    input.rival ? `Head to head · ${formatUsd(state.budget)}` : `Beat my ${formatUsd(state.budget)} garage`,
+    w / 2,
+    h - 222,
+  );
 
   ctx.font = `400 24px ${MONO}`;
   ctx.fillStyle = IN.tertiary;
@@ -226,7 +238,11 @@ function drawLink(ctx: CanvasRenderingContext2D, input: CardInput, w: number, h:
   ctx.textAlign = 'center';
   ctx.font = `600 32px ${SANS}`;
   ctx.fillStyle = IN.bg;
-  ctx.fillText(`Beat my ${formatUsd(state.budget)} garage`, pad + 260, h - 108);
+  ctx.fillText(
+    input.rival ? `Head to head · ${formatUsd(state.budget)}` : `Beat my ${formatUsd(state.budget)} garage`,
+    pad + 260,
+    h - 108,
+  );
   ctx.textAlign = 'left';
 
   // Right column: one line per slot, never an empty cell.

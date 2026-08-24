@@ -15,7 +15,9 @@ function lum(rgb) {
 function ratio(a, b) { const [x, y] = [lum(a), lum(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); }
 const parse = (s) => (s.match(/\d+(\.\d+)?/g) || []).slice(0, 3).map(Number);
 
-const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+const browser = await chromium.launch(
+  process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
+);
 
 for (const scheme of ['light', 'dark']) {
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 1000 }, colorScheme: scheme });

@@ -13,7 +13,7 @@ import encoded from './generated/catalog.slim.json';
  * fails validation fails the build, and the schema library never ships.
  */
 
-export const PRICES_AS_OF = 'August 2026';
+export const PRICES_AS_OF = 'August 24, 2026';
 
 export const CATALOG: Vehicle[] = decodeCatalog(encoded as unknown as EncodedCatalog);
 

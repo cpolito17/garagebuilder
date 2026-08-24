@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summarise } from './garageSummary';
+import { originCountry, summarise } from './garageSummary';
 import { CATALOG } from '../data/catalog';
 
 const pick = (id: string) => {
@@ -53,14 +53,18 @@ describe('garage summary', () => {
     expect(ev).toBeLessThan(petrol / 2);
   });
 
-  it('counts three pedals only where a manual is offered', () => {
-    expect(summarise([pick('honda-s2000-ap')]).pedals).toBe(3);
-    expect(summarise([pick('lexus-ls460-xf40')]).pedals).toBe(2);
+  it('counts cars offered with a manual', () => {
+    expect(summarise([pick('honda-s2000-ap')]).manualCars).toBe(1);
+    expect(summarise([pick('lexus-ls460-xf40')]).manualCars).toBe(0);
   });
 
   it('counts distinct countries of origin', () => {
     expect(summarise([pick('mazda-mx5-nc'), pick('toyota-4runner-n280')]).countries).toBe(1);
     expect(summarise([pick('mazda-mx5-nc'), pick('bmw-m3-e46'), pick('ford-f150-13th')]).countries).toBe(3);
+  });
+
+  it('has an explicit origin for every catalog make', () => {
+    for (const vehicle of CATALOG) expect(originCountry(vehicle.make), vehicle.make).toBeTruthy();
   });
 
   it('handles an empty garage without throwing', () => {

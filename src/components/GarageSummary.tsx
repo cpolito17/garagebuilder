@@ -34,7 +34,7 @@ export function GarageSummary({
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
           <Stat label="Cars" value={String(picks.length)} />
           <Stat label="Combined power" value={`${s.combinedHorsepower.toLocaleString()} hp`} />
-          <Stat label="Pedals" value={String(s.pedals)} />
+          <Stat label="Manual-equipped" value={String(s.manualCars)} />
           <Stat label="Countries" value={String(s.countries)} />
         </div>
 
@@ -88,7 +88,7 @@ export function GarageSummary({
             </span>
           </div>
           <p className="m-0 t-small text-[--text-tertiary]">
-            At 12,000 miles a year per vehicle. Not included in the budget, which is purchase price
+            At 12,000 miles a year across the garage, split evenly between its cars. Not included in the budget, which is purchase price
             only. Insurance is deliberately absent: real premiums vary several fold by driver,
             record and postcode, so a figure here would be the least defensible number in the app.
           </p>

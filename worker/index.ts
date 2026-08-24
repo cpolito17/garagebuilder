@@ -21,6 +21,20 @@ export interface Env {
 
 const HTML_TYPES = ['text/html', 'application/xhtml+xml'];
 
+function secureHtmlHeaders(asset: Response): Headers {
+  const headers = new Headers(asset.headers);
+  for (const name of ['content-length', 'content-encoding', 'etag', 'last-modified']) headers.delete(name);
+  headers.set('content-type', 'text/html; charset=utf-8');
+  headers.set('cache-control', 'public, max-age=0, s-maxage=3600');
+  headers.set('content-security-policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+  headers.set('referrer-policy', 'strict-origin-when-cross-origin');
+  headers.set('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('x-frame-options', 'DENY');
+  headers.set('strict-transport-security', 'max-age=31536000; includeSubDomains');
+  return headers;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -48,13 +62,9 @@ export default {
     // etag, content-length and content-encoding all describe the untransformed
     // index.html: forwarding them would let a cache serve one garage's preview
     // for another garage's link, or truncate the body outright.
-    return new Response(html, {
+    return new Response(request.method === 'HEAD' ? null : html, {
       status: asset.status,
-      headers: {
-        'content-type': 'text/html; charset=utf-8',
-        // Previews are deterministic for a given link and cheap to recompute.
-        'cache-control': 'public, max-age=0, s-maxage=3600',
-      },
+      headers: secureHtmlHeaders(asset),
     });
   },
 };

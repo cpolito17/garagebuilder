@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { ROLES } from './types';
 
+const MAX_MODEL_YEAR = new Date().getFullYear() + 1;
+
 /**
  * Build-time validation only. Imported by scripts/build-catalog.ts and by the
  * catalog tests, never by application code: keeping Zod out of the client
@@ -19,6 +21,9 @@ export const priceCurveSchema = z
   })
   .refine((c) => c.floor < c.base, {
     message: 'floor must be below base',
+  })
+  .refine((c) => c.msrpNew === undefined || c.msrpNew >= c.base, {
+    message: 'msrpNew must be at least the baseline used price',
   });
 
 export const issueSchema = z.object({
@@ -34,7 +39,7 @@ export const vehicleSchema = z
     make: z.string().min(1),
     model: z.string().min(1),
     generation: z.string().min(1),
-    years: z.tuple([z.number().min(1990), z.number().max(2027)]),
+    years: z.tuple([z.number().min(1990), z.number().max(MAX_MODEL_YEAR)]),
     status: z.enum(['current', 'discontinued']),
 
     roles: z.array(z.enum(ROLES)).min(1),

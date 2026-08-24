@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CATALOG } from './catalog';
 import { ROLES, type Role } from './types';
-import { milesAffordable, priceAtMiles, plausibleMaxMiles, ceilingPrice } from '../lib/pricing';
+import { CURRENT_YEAR, milesAffordable, priceAtMiles, plausibleMaxMiles, ceilingPrice } from '../lib/pricing';
 
 /** Sanity checks over the whole catalog. docs/DATA-MODEL.md section 8. */
 
@@ -54,7 +54,7 @@ describe('catalog integrity', () => {
 
   it('gives every record older than three years a usable mileage ceiling', () => {
     for (const v of CATALOG) {
-      if (2026 - v.years[0] <= 3) continue;
+      if (CURRENT_YEAR - v.years[0] <= 3) continue;
       expect(plausibleMaxMiles(v.years[0]), v.id).toBeGreaterThanOrEqual(40_000);
     }
   });
@@ -62,12 +62,14 @@ describe('catalog integrity', () => {
   it('requires msrpNew on every current vehicle', () => {
     for (const v of CATALOG.filter((x) => x.status === 'current')) {
       expect(v.pricing.msrpNew, v.id).toBeGreaterThan(0);
+      expect(v.pricing.msrpNew, v.id).toBeGreaterThanOrEqual(v.pricing.base);
     }
   });
 
-  it('prices a new car at or below its MSRP once used examples exist', () => {
+  it('prices every delivery-mileage current car exactly at MSRP', () => {
     for (const v of CATALOG.filter((x) => x.status === 'current')) {
-      expect(ceilingPrice(v.pricing), v.id).toBeLessThanOrEqual(v.pricing.msrpNew! * 1.05);
+      expect(ceilingPrice(v.pricing), v.id).toBe(v.pricing.msrpNew);
+      expect(priceAtMiles(v.pricing, 0), v.id).toBe(v.pricing.msrpNew);
     }
   });
 

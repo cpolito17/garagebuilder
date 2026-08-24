@@ -13,6 +13,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { vehicleSchema, type AuthoredVehicle } from '../src/data/schema';
 import { encodeCatalog } from '../src/data/codec';
 import type { Vehicle } from '../src/data/types';
+import { CATALOG_SOURCES, CATALOG_UPDATED_AT } from '../src/data/provenance';
 import { groupA } from '../src/data/vehicles/group-a';
 import { groupB } from '../src/data/vehicles/group-b';
 import { groupC } from '../src/data/vehicles/group-c';
@@ -63,6 +64,8 @@ const details = Object.fromEntries(
     {
       summary: v.notes.summary,
       whatToLookFor: v.notes.whatToLookFor,
+      updatedAt: CATALOG_UPDATED_AT,
+      sources: CATALOG_SOURCES,
       ...(v.notes.packages?.length ? { packages: v.notes.packages } : {}),
       ...(v.notes.milestoneServices?.length ? { milestoneServices: v.notes.milestoneServices } : {}),
     },

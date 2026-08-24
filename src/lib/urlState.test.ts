@@ -155,6 +155,18 @@ describe('the challenge', () => {
     expect(new Set(c.slots.map((s) => s.id)).size).toBe(3);
     expect(c.slots.map((s) => s.id)).not.toEqual(g.slots.map((s) => s.id));
   });
+
+  it('resets private mileage, filter, and allocation choices', () => {
+    const g = initialGarage(40_000, 2);
+    g.slots[0]!.maxMiles = 42_000;
+    g.slots[0]!.filters = { ...g.slots[0]!.filters, minYear: 2020, minSeats: 7 };
+    g.slots[0]!.target = 35_000;
+    const c = challengeFrom(g);
+    expect(c.slots[0]!.maxMiles).toBe(120_000);
+    expect(c.slots[0]!.filters.minYear).toBe(1990);
+    expect(c.slots[0]!.filters.minSeats).not.toBe(7);
+    expect(c.slots.reduce((sum, slot) => sum + slot.target, 0)).toBe(c.budget);
+  });
 });
 
 describe('share url', () => {
