@@ -48,6 +48,7 @@ and a record that fails schema validation fails the build.
 | [`docs/SPEC.md`](docs/SPEC.md) | Product spec. Scope, screens, interactions, the share loop, build phases. |
 | [`docs/DESIGN.md`](docs/DESIGN.md) | Design system. Tokens, type, components, motion physics, accessibility, pre-flight checklist. |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Catalog schema, the price model and its inversion, sourcing, licensing, authoring plan. |
+| [`docs/CATALOG_EXPANSION_TUTORIAL.md`](docs/CATALOG_EXPANSION_TUTORIAL.md) | Agent procedure for researching and adding balanced vehicle batches, with extra high-price coverage. |
 
 Read `SPEC.md` first. `DATA-MODEL.md` section 3 is the part everything else
 depends on.
