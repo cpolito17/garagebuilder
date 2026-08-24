@@ -589,10 +589,21 @@ harsher than a typical phone. The budget is therefore revised to 160 kB with
 the LCP targets as the real constraint, rather than kept at a number the
 design's own requirements make unreachable.
 
-**This is a ceiling, not a licence.** Growing the catalog to 250 records adds
-roughly 12 kB gzipped to the eager chunk and would land near 164 kB. Before
-that ships, the catalog must move behind a skeleton or be split by role.
-Re-measure with `node scripts/perf.mjs`, do not estimate.
+**This is a ceiling, not a licence.** Re-measure with `node scripts/perf.mjs`,
+do not estimate.
+
+**Headroom was bought properly rather than by raising the number again.**
+Motion ships a feature bundle, and the expensive half of it is layout
+projection, which existed in this app to serve exactly two `layout` props.
+Switching to `LazyMotion` with `domAnimation` cut motion from 46.21 to
+33.06 kB gzipped and took the initial payload from 156.00 to 142.85 kB.
+
+The stacked allocation bar was the one thing that depended on projection. It is
+now positioned and sized with `translateX` and `scaleX` instead of width, which
+keeps the redistribution animation, keeps it on the compositor, and keeps it
+inside the transform-and-opacity rule in section 7.4. The result-card layout
+animation was dropped; `AnimatePresence` already carries enter and exit, and
+smooth reflow on reorder was not worth 13 kB.
 
 **Reserve image geometry** with fixed aspect ratios before load. CLS on a
 result grid is unforgiving.

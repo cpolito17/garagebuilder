@@ -1,5 +1,5 @@
 import { Minus, Plus, ArrowClockwise } from '@phosphor-icons/react';
-import { motion, useReducedMotion } from 'motion/react';
+import { m } from 'motion/react';
 import { formatUsd } from '../lib/pricing';
 import type { Allocation, GarageState } from '../state/garage';
 import { MAX_SLOTS } from '../state/garage';
@@ -17,7 +17,6 @@ export function BudgetBar({
   onSlotCount: (n: number) => void;
   onAutoAllocate: () => void;
 }) {
-  const reduce = useReducedMotion();
   const count = state.slots.length;
 
   return (
@@ -95,29 +94,39 @@ export function BudgetBar({
           </button>
         </div>
 
-        {/* Stacked allocation across the whole budget */}
+        {/* Stacked allocation across the whole budget.
+            Segments are positioned and sized with transforms rather than
+            width, so the redistribution after a pin animates on the compositor
+            and stays inside the transform-and-opacity rule in DESIGN.md 7.4. */}
         <div className="flex items-center gap-3">
         <div
-          className="flex h-2 w-full flex-1 gap-0.5 overflow-hidden rounded-full"
+          className="relative h-2 w-full flex-1 overflow-hidden rounded-full"
           style={{ background: 'var(--bg-shell)', border: '1px solid var(--hairline)' }}
           aria-hidden
         >
-          {state.slots.map((s) => {
-            const dollars = alloc.perSlot.get(s.id) ?? 0;
-            const scale = Math.max(state.budget, alloc.total);
-            return (
-              <motion.div
-                key={s.id}
-                layout={!reduce}
-                transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
-                style={{
-                  width: `${(dollars / scale) * 100}%`,
-                  background: s.pinned ? 'var(--accent)' : 'var(--text-secondary)',
-                  opacity: s.pinned ? 1 : 0.75,
-                }}
-              />
-            );
-          })}
+          {(() => {
+            const scale = Math.max(state.budget, alloc.total, 1);
+            let offset = 0;
+            return state.slots.map((slot) => {
+              const dollars = alloc.perSlot.get(slot.id) ?? 0;
+              const frac = dollars / scale;
+              const at = offset;
+              offset += frac;
+              return (
+                <m.div
+                  key={slot.id}
+                  className="absolute inset-y-0 left-0 w-full origin-left rounded-full"
+                  initial={false}
+                  animate={{ x: `${at * 100}%`, scaleX: Math.max(0, frac - 0.004) }}
+                  transition={{ type: 'spring', bounce: 0.15, duration: 0.4 }}
+                  style={{
+                    background: slot.pinned ? 'var(--accent)' : 'var(--text-secondary)',
+                    opacity: slot.pinned ? 1 : 0.75,
+                  }}
+                />
+              );
+            });
+          })()}
         </div>
         <span
           className="num t-small shrink-0 md:hidden"

@@ -1,5 +1,5 @@
 import { memo, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'motion/react';
+import { m, useReducedMotion } from 'motion/react';
 import { Star, Warning, Engine, Users, Package, SteeringWheel, Snowflake, Lightning } from '@phosphor-icons/react';
 import type { Match } from '../lib/matching';
 import type { Role } from '../data/types';
@@ -53,9 +53,8 @@ export const ResultCard = memo(function ResultCard({
   const hero = heroFor(v.id);
 
   return (
-    <motion.article
+    <m.article
       ref={ref}
-      layout={!reduce}
       initial={reduce ? false : { opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: Math.min(index, 8) * 0.04, ease: [0.32, 0.72, 0, 1] }}
@@ -150,6 +149,6 @@ export const ResultCard = memo(function ResultCard({
           )}
         </div>
       </div>
-    </motion.article>
+    </m.article>
   );
 });

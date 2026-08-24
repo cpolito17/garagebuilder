@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { motion, useMotionValueEvent, useTransform } from 'motion/react';
+import { m, useMotionValueEvent, useTransform } from 'motion/react';
 import { Lock } from '@phosphor-icons/react';
 import { useAllocationDrag } from '../hooks/useAllocationDrag';
 import { formatUsd } from '../lib/pricing';
@@ -75,7 +75,7 @@ export function AllocationSlider({
           className="absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 overflow-hidden rounded-full"
           style={{ background: 'var(--bg-shell)', border: '1px solid var(--hairline)' }}
         >
-          <motion.div
+          <m.div
             className="h-full rounded-full"
             style={{
               width,
@@ -87,7 +87,7 @@ export function AllocationSlider({
 
         {/* Handle */}
         {!pinned && (
-          <motion.div
+          <m.div
             aria-hidden
             className="absolute top-1/2 grid h-6 w-6 place-items-center rounded-full"
             style={{

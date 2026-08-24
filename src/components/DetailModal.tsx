@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'motion/react';
+import { m, AnimatePresence, useReducedMotion } from 'motion/react';
 import { X, Warning, Star, ArrowSquareOut } from '@phosphor-icons/react';
 import type { Match } from '../lib/matching';
 import type { VehicleDetails } from '../data/types';
@@ -93,7 +93,7 @@ export function DetailModal({
   return (
     <AnimatePresence>
       {open && v && match && (
-        <motion.div
+        <m.div
           className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto p-0 sm:items-center sm:p-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -109,7 +109,7 @@ export function DetailModal({
             tabIndex={-1}
           />
 
-          <motion.div
+          <m.div
             ref={panelRef}
             role="dialog"
             aria-modal="true"
@@ -348,8 +348,8 @@ export function DetailModal({
                 </p>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );
