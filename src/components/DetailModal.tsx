@@ -342,7 +342,12 @@ export function DetailModal({
                       {details.sources.map((source) => (
                         <li key={`${source.label}-${source.fields.join(',')}`} className="t-small text-[--text-tertiary]">
                           {source.url ? (
-                            <a href={source.url} target="_blank" rel="noreferrer noopener" className="underline">
+                            <a
+                              href={source.url}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                              className="inline-flex min-h-11 items-center underline"
+                            >
                               {source.label}
                             </a>
                           ) : source.label}
