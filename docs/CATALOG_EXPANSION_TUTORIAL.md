@@ -298,8 +298,11 @@ Update `CATALOG_UPDATED_AT` in `src/data/provenance.ts` to the research date.
 Do not change `PRICES_AS_OF` unless the batch also recalibrates the older
 catalog prices.
 
-Run `npm run catalog` and commit both authored files and regenerated files in
-`src/data/generated/`.
+Run `npm run catalog` to regenerate the ignored files in
+`src/data/generated/`. The repository's `.gitignore` intentionally excludes
+`catalog.slim.json` and `details.json`, so do not commit those generated
+files. Commit the authored group, build import, research log, and any required
+metadata changes instead.
 
 ## Step 7: validate the batch
 
@@ -346,7 +349,7 @@ The final pull-request description must include:
 - Any weak data, model limitation, or schema change.
 - A short list of the highest-priced additions and their calibrated ceilings.
 
-Do not report the task as complete if the generated catalog, tests, build, or
+Do not report the task as complete if catalog generation, tests, build, or
 audit fails.
 
 ## Common failure modes

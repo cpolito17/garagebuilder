@@ -29,8 +29,9 @@ import { groupL } from '../src/data/vehicles/group-l';
 import { groupM } from '../src/data/vehicles/group-m';
 import { groupN } from '../src/data/vehicles/group-n';
 import { groupO } from '../src/data/vehicles/group-o';
+import { groupP } from '../src/data/vehicles/group-p';
 
-const RAW = [...groupA, ...groupB, ...groupC, ...groupD, ...groupE, ...groupF, ...groupG, ...groupH, ...groupI, ...groupJ, ...groupK, ...groupL, ...groupM, ...groupN, ...groupO];
+const RAW = [...groupA, ...groupB, ...groupC, ...groupD, ...groupE, ...groupF, ...groupG, ...groupH, ...groupI, ...groupJ, ...groupK, ...groupL, ...groupM, ...groupN, ...groupO, ...groupP];
 
 const seen = new Set<string>();
 const parsed: AuthoredVehicle[] = RAW.map((record, i) => {
