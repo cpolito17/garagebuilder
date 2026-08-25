@@ -798,7 +798,7 @@ export const groupQ: unknown[] = [
       "knownIssues": [
         {
           "text": "Complex 4WD, active-stabilizer, and air-suspension hardware is costly when neglected",
-          "onsetMiles": 80000,
+          "onsetMiles": 60000,
           "typicalCostUsd": 4500,
           "severity": "expensive"
         },

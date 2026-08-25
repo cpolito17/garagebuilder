@@ -655,7 +655,7 @@ export const groupR: unknown[] = [
         },
         {
           "text": "A damaged battery cooling system or inverter is a specialist repair outside warranty",
-          "onsetMiles": 60000,
+          "onsetMiles": 40000,
           "typicalCostUsd": 4500,
           "severity": "car-ending"
         }
