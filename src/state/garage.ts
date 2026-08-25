@@ -1,5 +1,8 @@
 import { ROLE_WEIGHT, type Role } from '../data/types';
 import { DEFAULT_FILTERS, ROLE_PRESETS, type Filters } from '../lib/matching';
+import { MAX_ODOMETER } from '../lib/pricing';
+
+export { MAX_ODOMETER, ODOMETER_STEP } from '../lib/pricing';
 
 /**
  * Garage state and the allocation model. docs/SPEC.md section 4.2.
@@ -15,8 +18,28 @@ import { DEFAULT_FILTERS, ROLE_PRESETS, type Filters } from '../lib/matching';
  */
 
 export const MIN_SLOT = 1500;
+export const MAX_BUDGET = 2_000_000;
+/**
+ * The budget moves in ten thousand dollar steps, which is the granularity the
+ * question is actually asked at. Steps snap to the multiple rather than adding
+ * to whatever is there, so a garage nudged to $53,000 by a locked car steps up
+ * to $60,000 and not $63,000.
+ */
+export const BUDGET_STEP = 10_000;
+
+export function steppedBudget(current: number, direction: 1 | -1): number {
+  const snapped = direction > 0
+    ? Math.floor(current / BUDGET_STEP) * BUDGET_STEP + BUDGET_STEP
+    : Math.ceil(current / BUDGET_STEP) * BUDGET_STEP - BUDGET_STEP;
+  return Math.min(MAX_BUDGET, Math.max(MIN_SLOT, snapped));
+}
 export const MAX_SLOTS = 5;
-export const DEFAULT_MAX_MILES = 120_000;
+/**
+ * The odometer every slot starts at. A hundred thousand miles is what most
+ * people picture when they picture a used car, and it leaves the dial room to
+ * wind in both directions.
+ */
+export const DEFAULT_ODOMETER = 100_000;
 
 export type SlotState = {
   id: string;
@@ -24,7 +47,8 @@ export type SlotState = {
   target: number;          // dollars allocated to this slot
   pinned: boolean;         // a starred pick locks the slot to its price
   pick: string | null;     // vehicle id
-  maxMiles: number;
+  /** One odometer for the whole slot. Every result is priced at it. */
+  odometer: number;
   filters: Filters;
 };
 
@@ -70,7 +94,7 @@ export function makeSlot(role: Role | null, target: number): SlotState {
     target,
     pinned: false,
     pick: null,
-    maxMiles: DEFAULT_MAX_MILES,
+    odometer: DEFAULT_ODOMETER,
     filters: { ...DEFAULT_FILTERS, ...(role ? ROLE_PRESETS[role] ?? {} : {}) },
   };
 }
@@ -228,8 +252,9 @@ export function setSlotRole(state: GarageState, slotId: string, role: Role | nul
   };
 }
 
-export function setSlotMaxMiles(state: GarageState, slotId: string, maxMiles: number): GarageState {
-  return { ...state, slots: state.slots.map((s) => (s.id === slotId ? { ...s, maxMiles } : s)) };
+export function setSlotOdometer(state: GarageState, slotId: string, odometer: number): GarageState {
+  const clamped = Math.min(MAX_ODOMETER, Math.max(0, Math.round(odometer)));
+  return { ...state, slots: state.slots.map((s) => (s.id === slotId ? { ...s, odometer: clamped } : s)) };
 }
 
 export function setSlotFilters(state: GarageState, slotId: string, filters: Filters): GarageState {

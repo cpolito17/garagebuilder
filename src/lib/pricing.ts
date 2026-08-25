@@ -29,6 +29,30 @@ export function plausibleMinMiles(lastYear: number, currentYear = CURRENT_YEAR):
 }
 
 /**
+ * The odometer dial's range. It matches the hard cap in plausibleMaxMiles on
+ * purpose: if the dial stopped short of it, "no odometer brings this car into
+ * budget" would be a lie about the dial rather than a fact about the car, and
+ * the empty state would refuse offers it could actually honour.
+ */
+export const MAX_ODOMETER = 300_000;
+export const ODOMETER_STEP = 5_000;
+
+/**
+ * The odometer a given generation could actually be showing today.
+ *
+ * The slot sets one odometer for the whole list, but no single number is
+ * plausible for every car in it: a two year old hatchback cannot have covered
+ * 180,000 miles and a thirty year old roadster is not sitting at 5,000. Each
+ * vehicle is priced at the closest odometer its own age permits, and the card
+ * shows that number rather than the one on the dial.
+ */
+export function plausibleOdometer(odometer: number, firstYear: number, lastYear: number): number {
+  const low = plausibleMinMiles(lastYear);
+  const high = plausibleMaxMiles(firstYear);
+  return Math.min(high, Math.max(low, Math.max(0, odometer)));
+}
+
+/**
  * price(m) = floor + (base - floor) * (1 - decay) ^ ((m - baselineMiles) / 10000)
  *
  * Asymptotes to `floor` rather than going negative, so a 240,000 mile Civic

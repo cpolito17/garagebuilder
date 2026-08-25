@@ -23,7 +23,7 @@ const LOOKAHEAD = 10; // up to $5,000 ahead, enough to clear most price cliffs
 function scoreAt(state: GarageState, slotIndex: number, dollars: number): number {
   const slot = state.slots[slotIndex]!;
   const list = findMatches(CATALOG, {
-    budget: dollars, role: slot.role, maxMiles: slot.maxMiles, filters: slot.filters,
+    budget: dollars, role: slot.role, odometer: slot.odometer, filters: slot.filters,
   });
   const top = list.matches[0];
   if (!top) return 0;
@@ -33,15 +33,15 @@ function scoreAt(state: GarageState, slotIndex: number, dollars: number): number
 }
 
 /**
- * Cheapest budget at which this slot has anything at all. Match count is
- * monotonic in budget (more money lowers the required odometer and clears
- * more price floors), so a binary search is sound.
+ * Cheapest budget at which this slot has anything at all. Prices are fixed by
+ * the slot's odometer, so match count is monotonic in budget: raising it can
+ * only bring more cars under the line. A binary search is sound.
  */
 function entryPrice(state: GarageState, slotIndex: number, cap: number): number | null {
   const slot = state.slots[slotIndex]!;
   const has = (d: number) =>
     findMatches(CATALOG, {
-      budget: d, role: slot.role, maxMiles: slot.maxMiles, filters: slot.filters,
+      budget: d, role: slot.role, odometer: slot.odometer, filters: slot.filters,
     }).matches.length > 0;
 
   if (!has(cap)) return null;

@@ -129,7 +129,7 @@ function LiveAllocation() {
   const rows = state.slots.map((slot) => {
     const budget = alloc.perSlot.get(slot.id) ?? 0;
     const top = findMatches(CATALOG, {
-      budget, role: slot.role, maxMiles: slot.maxMiles, filters: slot.filters,
+      budget, role: slot.role, odometer: slot.odometer, filters: slot.filters,
     }).matches[0];
     return { slot, budget, top };
   });
@@ -140,6 +140,12 @@ function LiveAllocation() {
         <div className="flex items-baseline justify-between gap-4">
           <span className="t-label text-[--text-tertiary]">Total budget</span>
           <span className="num t-h1 text-[--text-primary]">{formatUsd(state.budget)}</span>
+        </div>
+        <div className="flex items-baseline justify-between gap-4">
+          <span className="t-label text-[--text-tertiary]">Odometer</span>
+          <span className="num t-small text-[--text-secondary]">
+            {formatMiles(state.slots[0]?.odometer ?? 0)}
+          </span>
         </div>
 
         <ul className="flex flex-col gap-5">
@@ -160,8 +166,7 @@ function LiveAllocation() {
                 {top ? (
                   <>
                     {top.vehicle.years[0]} to {top.vehicle.years[1]} {top.vehicle.make}{' '}
-                    {top.vehicle.model}, around{' '}
-                    <span className="num">{formatMiles(top.atMiles)}</span>
+                    {top.vehicle.model}, <span className="num">{formatUsd(top.spend)}</span>
                   </>
                 ) : (
                   'Nothing in the catalog reaches this slot yet.'
@@ -172,7 +177,8 @@ function LiveAllocation() {
         </ul>
 
         <p className="t-small text-[--text-tertiary]">
-          Drag a slider. The others give up the money and pick different cars.
+          Drag a slider. The others give up the money and pick different cars. In the
+          builder the odometer moves too, and every price moves with it.
         </p>
       </div>
     </Shell>
@@ -270,7 +276,7 @@ function ShareCardPreview() {
           for (const slot of state.slots) {
             const at = allocate(state).perSlot.get(slot.id) ?? 0;
             const best = findMatches(CATALOG, {
-              budget: at, role: slot.role, maxMiles: slot.maxMiles, filters: slot.filters,
+              budget: at, role: slot.role, odometer: slot.odometer, filters: slot.filters,
             }).matches[0];
             if (!best) continue;
             picks.push(best.vehicle);

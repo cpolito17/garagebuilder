@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   initialGarage, allocate, setSlotBudget, pinSlot, unpinSlot,
-  setBudget, setSlotCount, MIN_SLOT,
+  setBudget, setSlotCount, setSlotOdometer, steppedBudget,
+  MIN_SLOT, MAX_ODOMETER, DEFAULT_ODOMETER,
 } from './garage';
 
 const sum = (ns: number[]) => ns.reduce((a, b) => a + b, 0);
@@ -186,5 +187,39 @@ describe('budget and slot count changes', () => {
     g = setSlotCount(g, 3);
     expect(g.slots).toHaveLength(3);
     expect(totals(g)).toBeCloseTo(50_000, -2);
+  });
+});
+
+describe('the budget stepper', () => {
+  it('snaps to the ten thousand rather than adding to an odd number', () => {
+    expect(steppedBudget(50_000, 1)).toBe(60_000);
+    expect(steppedBudget(50_000, -1)).toBe(40_000);
+    expect(steppedBudget(53_000, 1)).toBe(60_000);
+    expect(steppedBudget(53_000, -1)).toBe(50_000);
+    expect(steppedBudget(47_281, 1)).toBe(50_000);
+    expect(steppedBudget(47_281, -1)).toBe(40_000);
+  });
+
+  it('always moves, and never past either end of the range', () => {
+    for (const start of [1500, 9_999, 10_000, 1_999_999, 2_000_000]) {
+      expect(steppedBudget(start, 1)).toBeGreaterThanOrEqual(start === 2_000_000 ? start : start);
+      expect(steppedBudget(start, 1)).toBeLessThanOrEqual(2_000_000);
+      expect(steppedBudget(start, -1)).toBeGreaterThanOrEqual(MIN_SLOT);
+    }
+    expect(steppedBudget(1500, -1)).toBe(MIN_SLOT);
+    expect(steppedBudget(2_000_000, 1)).toBe(2_000_000);
+  });
+});
+
+describe('the odometer', () => {
+  it('stays inside the dial range whatever it is handed', () => {
+    let g = initialGarage(50_000, 3);
+    const id = g.slots[0]!.id;
+    expect(setSlotOdometer(g, id, -5_000).slots[0]!.odometer).toBe(0);
+    expect(setSlotOdometer(g, id, 9_000_000).slots[0]!.odometer).toBe(MAX_ODOMETER);
+    g = setSlotOdometer(g, id, 137_500);
+    expect(g.slots[0]!.odometer).toBe(137_500);
+    // One slot's odometer is its own; the others keep the default.
+    expect(g.slots[1]!.odometer).toBe(DEFAULT_ODOMETER);
   });
 });

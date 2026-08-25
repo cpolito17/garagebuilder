@@ -2,7 +2,7 @@ import { ROLE_ORDER } from '../data/codec';
 import type { Role } from '../data/types';
 import { DEFAULT_FILTERS, type Filters } from './matching';
 import {
-  DEFAULT_MAX_MILES, distributeExact, makeSlot, MIN_SLOT,
+  DEFAULT_ODOMETER, MAX_ODOMETER, distributeExact, makeSlot, MIN_SLOT,
   type GarageState, type SlotState,
 } from '../state/garage';
 import { ROLE_WEIGHT } from '../data/types';
@@ -31,7 +31,7 @@ type WireSlot = {
   r?: number;        // role index into ROLE_ORDER, absent means any
   t: number;         // dollar target
   p?: string;        // pinned vehicle id
-  m?: number;        // mileage ceiling, absent means the default
+  m?: number;        // odometer, absent means the default
   f?: Partial<Record<keyof Filters, unknown>>; // only non-default filters
 };
 
@@ -78,7 +78,7 @@ export function encodeGarage(state: GarageState, title?: string): string {
       const roleIdx = slot.role ? ROLE_ORDER.indexOf(slot.role) : -1;
       if (roleIdx >= 0) w.r = roleIdx;
       if (slot.pinned && slot.pick) w.p = slot.pick;
-      if (slot.maxMiles !== DEFAULT_MAX_MILES) w.m = slot.maxMiles;
+      if (slot.odometer !== DEFAULT_ODOMETER) w.m = slot.odometer;
       const f = diffFilters(slot.filters);
       if (f) w.f = f;
       return w;
@@ -140,7 +140,7 @@ export function decodeGarage(raw: string | null | undefined): GarageState | null
       target: clampNumber(w?.t, 0, 2_000_000, MIN_SLOT),
       pinned: typeof w?.p === 'string' && w.p.length > 0,
       pick: typeof w?.p === 'string' && w.p.length > 0 ? w.p : null,
-      maxMiles: clampNumber(w?.m, 0, 400_000, DEFAULT_MAX_MILES),
+      odometer: clampNumber(w?.m, 0, MAX_ODOMETER, DEFAULT_ODOMETER),
       filters,
     };
   });

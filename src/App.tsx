@@ -6,7 +6,7 @@ import { formatUsd } from './lib/pricing';
 import { autoAllocate } from './lib/autoAllocate';
 import {
   allocate, initialGarage, pinSlot, setBudget, setSlotBudget, setSlotCount,
-  setSlotFilters, setSlotMaxMiles, setSlotRole, unpinSlot, MIN_SLOT,
+  setSlotFilters, setSlotOdometer, setSlotRole, unpinSlot, MIN_SLOT, DEFAULT_ODOMETER,
   type GarageState,
 } from './state/garage';
 import { BudgetBar } from './components/BudgetBar';
@@ -107,7 +107,7 @@ export default function App() {
         if (s.pinned) return false;
         const budget = alloc.perSlot.get(s.id) ?? 0;
         return findMatches(CATALOG, {
-          budget, role: s.role, maxMiles: s.maxMiles, filters: s.filters,
+          budget, role: s.role, odometer: s.odometer, filters: s.filters,
         }).matches.length === 0;
       }),
     [state.slots, alloc],
@@ -309,7 +309,7 @@ export default function App() {
       <DetailModal
         match={detail?.match ?? null}
         slotBudget={detail ? alloc.perSlot.get(detail.slotId) ?? 0 : 0}
-        slotMaxMiles={detailSlot?.maxMiles ?? 120_000}
+        slotOdometer={detailSlot?.odometer ?? DEFAULT_ODOMETER}
         origin={detail?.origin ?? null}
         starred={!!detailSlot && detailSlot.pick === detail?.match.vehicle.id}
         onStar={() => {
@@ -352,7 +352,7 @@ function SlotColumnFor({
       onBudgetChange={(v) => update((s) => setSlotBudget(s, slot.id, v))}
       onBudgetCommit={(v) => update((s) => setSlotBudget(s, slot.id, v))}
       onRole={(r: Role | null) => update((s) => setSlotRole(s, slot.id, r))}
-      onMaxMiles={(v) => update((s) => setSlotMaxMiles(s, slot.id, v))}
+      onOdometer={(v) => update((s) => setSlotOdometer(s, slot.id, v))}
       onFilters={(f: Filters) => update((s) => setSlotFilters(s, slot.id, f))}
       onStar={(vehicleId, spend) => update((s) => pinSlot(s, slot.id, vehicleId, spend))}
       onUnstar={() => update((s) => unpinSlot(s, slot.id))}
