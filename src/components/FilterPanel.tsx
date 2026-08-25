@@ -36,12 +36,12 @@ const SEATS = [0, 2, 4, 5, 6, 7];
 const TOWING = [0, 3500, 5000, 7000, 10000];
 
 export function FilterPanel({
-  filters, role, budget, maxMiles, onChange,
+  filters, role, budget, odometer, onChange,
 }: {
   filters: Filters;
   role: Role | null;
   budget: number;
-  maxMiles: number;
+  odometer: number;
   onChange: (f: Filters) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -52,8 +52,8 @@ export function FilterPanel({
   /** Result count if one field were changed, so the impact is visible first. */
   const countWith = useMemo(
     () => (patch: Partial<Filters>) =>
-      findMatches(CATALOG, { budget, role, maxMiles, filters: { ...filters, ...patch } }).matches.length,
-    [budget, role, maxMiles, filters],
+      findMatches(CATALOG, { budget, role, odometer, filters: { ...filters, ...patch } }).matches.length,
+    [budget, role, odometer, filters],
   );
 
   const changed = (Object.keys(DEFAULT_FILTERS) as (keyof Filters)[]).filter((k) => {

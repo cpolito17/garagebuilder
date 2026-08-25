@@ -1,6 +1,7 @@
 import type { Issue, Role, Vehicle } from '../data/types';
 import {
-  estimatedPrice, milesAffordable, plausibleMaxMiles, plausibleMinMiles,
+  estimatedPrice, milesAffordable, plausibleMaxMiles, plausibleOdometer,
+  MAX_ODOMETER, ODOMETER_STEP,
 } from './pricing';
 
 /** Hard filters exposed per slot. All optional, all AND-ed. */
@@ -39,9 +40,12 @@ export const ROLE_PRESETS: Partial<Record<Role, Partial<Filters>>> = {
 
 export type MatchOutcome =
   | { kind: 'match'; vehicle: Vehicle; atMiles: number; spend: number; score: number; cautions: Issue[] }
-  | { kind: 'below-floor'; vehicle: Vehicle; shortfall: number }
-  | { kind: 'over-ceiling'; vehicle: Vehicle; needsMiles: number }
-  | { kind: 'implausible'; vehicle: Vehicle }
+  /**
+   * Priced at this slot's odometer and still above its budget. `reachableAt`
+   * is the odometer that would bring it into reach, or null when no plausible
+   * odometer does, so the empty state can offer a number instead of a shrug.
+   */
+  | { kind: 'over-budget'; vehicle: Vehicle; atMiles: number; price: number; reachableAt: number | null }
   | { kind: 'filtered'; vehicle: Vehicle };
 
 function passesFilters(v: Vehicle, f: Filters): boolean {
@@ -100,60 +104,61 @@ function ownershipFit(v: Vehicle): number {
 function rankScore(
   vehicle: Vehicle,
   spend: number,
-  atMiles: number,
   q: SlotQuery,
   attainableTarget: number,
 ): number {
+  // No mileage term. Every car in the list is priced at the same odometer, so
+  // mileage is the constant the user set rather than a way to separate them.
   return (
-    0.65 * budgetFit(spend, attainableTarget) +
-    0.20 * roleFit(vehicle, q.role) +
-    0.10 * (1 - Math.min(1, atMiles / Math.max(1, q.maxMiles))) +
-    0.05 * ownershipFit(vehicle)
+    0.70 * budgetFit(spend, attainableTarget) +
+    0.22 * roleFit(vehicle, q.role) +
+    0.08 * ownershipFit(vehicle)
   );
 }
 
 export type SlotQuery = {
   budget: number;
   role: Role | null;
-  maxMiles: number;
+  /** One odometer for the whole list. Every result is priced at it. */
+  odometer: number;
   filters: Filters;
 };
 
+/**
+ * The odometer that would bring this vehicle inside the budget, or null when
+ * none does: either the budget sits under the price floor, or the odometer it
+ * implies is higher than the vehicle's age allows.
+ */
+function reachableOdometer(v: Vehicle, budget: number): number | null {
+  const raw = milesAffordable(v.pricing, budget);
+  if (raw === null) return null;
+  if (raw > plausibleMaxMiles(v.years[0])) return null;
+  return plausibleOdometer(raw, v.years[0], v.years[1]);
+}
+
+/**
+ * The slot fixes the odometer and asks what each vehicle costs there. This is
+ * the inversion of the original ceiling behaviour and it is the mechanic the
+ * product is for: winding the odometer up does not filter the list, it
+ * re-prices it, and cars that were out of reach walk into the budget.
+ */
 export function evaluate(v: Vehicle, q: SlotQuery): MatchOutcome {
   if (q.role && !v.roles.includes(q.role)) return { kind: 'filtered', vehicle: v };
   if (!passesFilters(v, q.filters)) return { kind: 'filtered', vehicle: v };
 
-  const raw = milesAffordable(v.pricing, q.budget);
-  if (raw === null) {
-    return { kind: 'below-floor', vehicle: v, shortfall: v.pricing.floor - q.budget };
+  const atMiles = plausibleOdometer(q.odometer, v.years[0], v.years[1]);
+  const price = estimatedPrice(v.pricing, atMiles);
+
+  if (price > q.budget) {
+    return { kind: 'over-budget', vehicle: v, atMiles, price, reachableAt: reachableOdometer(v, q.budget) };
   }
-
-  // An odometer time does not permit is removed outright. One the user's own
-  // ceiling excludes is reported back, so the empty state can name the exact
-  // ceiling that would reveal it.
-  if (raw > plausibleMaxMiles(v.years[0])) return { kind: 'implausible', vehicle: v };
-  if (raw > q.maxMiles) return { kind: 'over-ceiling', vehicle: v, needsMiles: raw };
-
-  // Clamped up to the lowest odometer this generation could plausibly show.
-  // Below that the budget is buying a car that does not exist, and the honest
-  // outcome is underspending on one that does.
-  const atMiles = Math.max(plausibleMinMiles(v.years[1]), raw);
-
-  // The clamp can push a car back over the user's ceiling: the cheapest
-  // example the budget reaches is fine, but the lowest-mileage example that
-  // exists at all is still above the limit they set.
-  if (atMiles > q.maxMiles) return { kind: 'over-ceiling', vehicle: v, needsMiles: atMiles };
-
-  const spend = Math.min(q.budget, estimatedPrice(v.pricing, atMiles));
-
-  const score = rankScore(v, spend, atMiles, q, q.budget);
 
   return {
     kind: 'match',
     vehicle: v,
     atMiles,
-    spend,
-    score,
+    spend: price,
+    score: rankScore(v, price, q, q.budget),
     cautions: cautionsFor(v, atMiles),
   };
 }
@@ -162,9 +167,8 @@ export type Match = Extract<MatchOutcome, { kind: 'match' }>;
 
 export type MatchList = {
   matches: Match[];
-  belowFloor: Extract<MatchOutcome, { kind: 'below-floor' }>[];
-  overCeiling: Extract<MatchOutcome, { kind: 'over-ceiling' }>[];
-  implausible: number;
+  /** Priced above the budget at this odometer, cheapest first. */
+  overBudget: Extract<MatchOutcome, { kind: 'over-budget' }>[];
   filtered: number;
 };
 
@@ -195,17 +199,13 @@ function diversify(matches: Match[], attainableTarget: number): Match[] {
 
 export function findMatches(catalog: Vehicle[], q: SlotQuery): MatchList {
   const matches: Match[] = [];
-  const belowFloor: MatchList['belowFloor'] = [];
-  const overCeiling: MatchList['overCeiling'] = [];
-  let implausible = 0;
+  const overBudget: MatchList['overBudget'] = [];
   let filtered = 0;
 
   for (const v of catalog) {
     const r = evaluate(v, q);
     if (r.kind === 'match') matches.push(r);
-    else if (r.kind === 'below-floor') belowFloor.push(r);
-    else if (r.kind === 'over-ceiling') overCeiling.push(r);
-    else if (r.kind === 'implausible') implausible++;
+    else if (r.kind === 'over-budget') overBudget.push(r);
     else filtered++;
   }
 
@@ -214,12 +214,11 @@ export function findMatches(catalog: Vehicle[], q: SlotQuery): MatchList {
     matches.reduce((highest, match) => Math.max(highest, match.spend), 0),
   );
   for (const match of matches) {
-    match.score = rankScore(match.vehicle, match.spend, match.atMiles, q, attainableTarget);
+    match.score = rankScore(match.vehicle, match.spend, q, attainableTarget);
   }
   matches.sort((a, b) => b.score - a.score);
-  belowFloor.sort((a, b) => a.shortfall - b.shortfall);
-  overCeiling.sort((a, b) => a.needsMiles - b.needsMiles);
-  return { matches: diversify(matches, attainableTarget), belowFloor, overCeiling, implausible, filtered };
+  overBudget.sort((a, b) => a.price - b.price);
+  return { matches: diversify(matches, attainableTarget), overBudget, filtered };
 }
 
 /**
@@ -233,38 +232,44 @@ export function findMatches(catalog: Vehicle[], q: SlotQuery): MatchList {
  */
 export function explainEmpty(list: MatchList, q: SlotQuery): {
   message: string;
-  action?: { label: string; kind: 'raise-ceiling'; value: number };
+  action?: { label: string; kind: 'set-odometer'; value: number };
 } {
-  if (list.overCeiling.length > 0) {
-    const nearest = list.overCeiling[0]!;
-    const needed = Math.ceil(nearest.needsMiles / 10_000) * 10_000;
-    const n = list.overCeiling.length;
+  // The offer is the smallest wind of the dial that brings something in, and
+  // the message names that same vehicle: an offer about one car and a sentence
+  // about another reads as two unrelated facts. Never past the dial's own end,
+  // because an offer the control cannot honour is worse than no offer.
+  const reachable = list.overBudget
+    .filter((o) => o.reachableAt !== null && o.reachableAt > q.odometer && o.reachableAt <= MAX_ODOMETER)
+    .sort((a, b) => a.reachableAt! - b.reachableAt!);
+
+  if (reachable.length > 0) {
+    const nearest = reachable[0]!;
+    const needed = Math.min(MAX_ODOMETER, Math.ceil(nearest.reachableAt! / ODOMETER_STEP) * ODOMETER_STEP);
+    const n = list.overBudget.length;
     return {
-      message: `${n} ${n === 1 ? 'vehicle fits' : 'vehicles fit'} this budget, but only at a higher odometer than your limit allows. The closest is the ${nearest.vehicle.make} ${nearest.vehicle.model} at about ${Math.round(nearest.needsMiles / 1000)},000 miles.`,
-      action: { label: `Raise the mileage limit to ${needed.toLocaleString()}`, kind: 'raise-ceiling', value: needed },
+      message: `${n} ${n === 1 ? 'vehicle fits' : 'vehicles fit'} these filters but ${n === 1 ? 'costs' : 'cost'} more than ${fmt(q.budget)} at ${fmt0(q.odometer)} miles. The nearest is the ${nearest.vehicle.make} ${nearest.vehicle.model}, ${fmt(nearest.price)} here, and inside the budget at ${fmt0(needed)} miles.`,
+      action: { label: `Set the odometer to ${needed.toLocaleString()}`, kind: 'set-odometer', value: needed },
     };
   }
-  if (list.belowFloor.length > 0) {
-    const nearest = list.belowFloor[0]!;
-    // A budget sitting exactly on a floor has a shortfall of zero, and
-    // "needs about $0 more" is not a sentence. Never promise below one step.
-    const need = Math.max(500, Math.ceil(nearest.shortfall / 500) * 500);
+
+  if (list.overBudget.length > 0) {
+    const nearest = list.overBudget[0]!;
+    const need = Math.max(500, Math.ceil((nearest.price - q.budget) / 500) * 500);
     return {
-      message: `Nothing reaches this slot at ${fmt(q.budget)}. The closest is the ${nearest.vehicle.make} ${nearest.vehicle.model}, which needs about ${fmt(need)} more at any odometer.`,
+      message: `Nothing here costs ${fmt(q.budget)} or less at any odometer its age allows. The closest is the ${nearest.vehicle.make} ${nearest.vehicle.model}, which needs about ${fmt(need)} more.`,
     };
   }
-  if (list.implausible > 0) {
-    const n = list.implausible;
-    return {
-      message: `${n} ${n === 1 ? 'vehicle would need' : 'vehicles would need'} a higher odometer than their age allows at this budget. Move more budget into this slot.`,
-    };
-  }
+
   if (q.filters.transmissions.length || q.filters.drivetrains.length) {
-    return { message: 'No vehicle matches this combination of transmission and drivetrain at this budget. Relax one of them.' };
+    return { message: 'No vehicle matches this combination of transmission and drivetrain. Relax one of them.' };
   }
-  return { message: 'No vehicle matches these filters at this budget. Relax a filter or move budget into this slot.' };
+  return { message: 'No vehicle matches these filters. Relax a filter or move budget into this slot.' };
 }
 
 function fmt(n: number) {
   return `$${Math.round(n).toLocaleString('en-US')}`;
+}
+
+function fmt0(n: number) {
+  return Math.round(n).toLocaleString('en-US');
 }

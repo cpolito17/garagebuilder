@@ -599,7 +599,8 @@ inside the ceiling. LCP 1148ms on fast 4G and 1884ms on slow 4G with 6x CPU
 throttling, CLS 0.0007. The catalog is now the largest single chunk at
 28.39 kB gzipped, which is the cost of the thing the app is actually for.
 
-**Re-measured with the landing page:** initial JS 156.25 kB gzipped. The
+**Re-measured with the landing page and the odometer control:** initial JS
+157.02 kB gzipped. The
 landing page cost 2.87 kB because it reuses the builder's own components rather
 than shipping a second set, and the share-card renderer it loads on scroll
 became its own 1.88 kB chunk that the share panel now shares.

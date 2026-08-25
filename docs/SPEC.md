@@ -49,10 +49,14 @@ and more credible than a punchline about it.
 
 ## 2. Core model
 
-**Budget.** One number, entered once, at the top. Purchase price only.
+**Budget.** One number, entered once, at the top. Purchase price only. It steps
+in $10,000 increments, which is the granularity the question is actually asked
+at, and the steps snap to the multiple rather than adding to whatever is there:
+a garage nudged to $53,000 by a locked car steps up to $60,000, not $63,000.
+Any exact figure can still be typed.
 
 **Slot.** One car you intend to buy. Between 1 and 5 of them. A slot has a
-role, a share of the budget, a mileage ceiling, a filter set, and eventually a
+role, a share of the budget, an odometer, a filter set, and eventually a
 locked pick.
 
 **Role.** What the slot is for. Roles preset filters and bias ranking. They
@@ -178,24 +182,37 @@ leaving a silent gap. A $25,000 three car garage with sports, commuter and
 family slots needs $31,750 to give all three something, and the header states
 that plainly.
 
-### 4.3 The mileage control
+### 4.3 The odometer
 
-One control per slot: a **mileage ceiling**, from 0 up to 250,000, default
-120,000.
+One control per slot: an **odometer**, from 0 to 300,000 in 5,000 mile steps,
+default 100,000. It sets the mileage for the whole list, and every result is
+priced at it.
 
-It is not a filter on a mileage field. It reads the price curve backwards. For
-a given slot budget, every vehicle has a required odometer (see
-`DATA-MODEL.md` section 3.2). The ceiling decides which required odometers are
-acceptable.
+This is the inversion of the original design, which used the same slider as a
+ceiling on the odometer each car's budget implied. That version was a filter
+wearing a dial's clothes: dragging it made cars appear and disappear, and the
+prices never moved. As an odometer the control does what its shape promises.
+Winding it up does not filter the list, it re-prices it, and cars that were out
+of reach walk into the budget:
 
-Raise the ceiling and expensive cars enter the list, each labeled with the
-mileage that budget actually buys:
+> **A $19,400 sports slot.** At 20,000 miles: Honda Prelude, BMW 335i, NC
+> Miata. At 100,000: Mustang GT, Mercury Marauder, Impreza WRX. At 200,000:
+> MR2 Turbo, WRX STI, Jaguar F-Type S.
 
-> **$18,000 buys:** Mazda MX-5 (NC) at ~18,000 miles. Honda Civic Si at
-> ~108,000 miles. Mercedes-AMG E63 (W212) at ~115,000 miles.
+No single odometer is plausible for every car in a list, so each vehicle is
+priced at the closest odometer its own generation could be showing: a two year
+old hatchback is not sitting at 180,000 and a thirty year old roadster is not
+sitting at 5,000 (`DATA-MODEL.md` section 3.2). Every result card states the
+odometer it was actually priced at, which is how a clamped car explains itself.
 
-Every result card states its implied odometer next to its price, because the
-odometer is half the offer.
+The dial's range ends at 300,000 because that is the hard cap in
+`plausibleMaxMiles`. If it stopped short, "no odometer brings this car into
+budget" would be a statement about the control rather than about the car, and
+the empty state would refuse offers it could have honoured.
+
+Because the price is now the car's price rather than the whole slot budget, a
+slot routinely spends less than it holds. That is a real result and the garage
+summary reports it.
 
 A card shows a caution marker when the implied odometer has passed the onset of
 any documented issue. There is no arbitrary mileage gate: an issue that starts
@@ -223,10 +240,14 @@ The empty state distinguishes four causes, because they have different fixes:
 
 | Cause | What it says |
 | --- | --- |
-| Mileage ceiling | Names the closest vehicle and the odometer it needs, with a button that raises the limit to exactly that |
-| Below every price floor | Names the closest vehicle and how much more it needs at any odometer |
-| Odometer implausible for the age | Says the budget is too low for this slot |
+| Priced out at this odometer | Names the vehicle that the smallest wind of the dial brings in, its price here, and offers exactly that odometer |
+| Priced out at every odometer | Names the closest vehicle and how much more budget it needs |
 | Filter combination | Names the pairing to relax |
+
+The offer and the sentence always name the same vehicle, and the offer is
+always inside the dial's range. An earlier build offered 255,000 miles from a
+control that stopped at 250,000, so taking the offer silently landed somewhere
+else; a test now asserts that every offer produces results when taken.
 
 A budget sitting exactly on a vehicle's price floor has a shortfall of zero, so
 the shortfall message never promises below one $500 step. "Needs about $0 more"

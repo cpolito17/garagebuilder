@@ -26,7 +26,7 @@ describe('auto-allocate', () => {
     const g = autoAllocate(initialGarage(70_000, 4));
     for (const s of g.slots) {
       const list = findMatches(CATALOG, {
-        budget: s.target, role: s.role, maxMiles: s.maxMiles, filters: s.filters,
+        budget: s.target, role: s.role, odometer: s.odometer, filters: s.filters,
       });
       expect(list.matches.length, `${s.role} at ${s.target}`).toBeGreaterThan(0);
     }
@@ -38,7 +38,7 @@ describe('auto-allocate', () => {
     const quality = (g: typeof naive) =>
       g.slots.reduce((a, s) => {
         const top = findMatches(CATALOG, {
-          budget: s.target, role: s.role, maxMiles: s.maxMiles, filters: s.filters,
+          budget: s.target, role: s.role, odometer: s.odometer, filters: s.filters,
         }).matches[0];
         return a + (top?.score ?? 0);
       }, 0);

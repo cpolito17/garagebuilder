@@ -3,10 +3,10 @@
 A tool for deciding how to spend one car budget across several cars that each do
 a different job.
 
-Set a total budget. Choose how many slots you want and what each is for. The
-tool shows what that money buys in each slot, including the odometer reading the
-budget implies. Lock one car per slot, then send it to someone as a challenge:
-same budget, same slots, beat it.
+Set a total budget. Choose how many slots you want and what each is for. Each
+slot has an odometer you set, and the tool shows what that money buys at that
+mileage. Lock one car per slot, then send it to someone as a challenge: same
+budget, same slots, beat it.
 
 **Status:** Phases 1 to 4 built. The math, the catalog of 250 vehicle
 generations, the allocation mechanic, the detail view, the garage summary, the
@@ -20,7 +20,7 @@ vehicle renders its typographic identity band, which is a designed state.
 ```bash
 npm install
 npm run dev          # development server
-npm test             # 152 tests
+npm test             # 167 tests
 npm run build        # validates the catalog, typechecks, builds
 npm run preview      # then, against the running preview:
                      #   node scripts/audit.mjs   accessibility audit, both themes
@@ -63,17 +63,28 @@ Every vehicle in the catalog has a price curve against odometer:
 price(m) = floor + (base - floor) * (1 - decay) ^ ((m - baselineMiles) / 10000)
 ```
 
-Run it backwards and you get the mechanic the whole product is built on:
+Each slot has an **odometer** you set, and every car in that slot's list is
+priced at it. So the question is not "which cars cost under $19,400" but
+**"what does $19,400 buy at 200,000 miles instead of 20,000."** Winding the dial
+up does not filter the list, it re-prices it:
+
+| Sports slot, $19,400 | The list |
+| --- | --- |
+| at 20,000 miles | Honda Prelude, BMW 335i, NC Miata |
+| at 100,000 miles | Mustang GT, Mercury Marauder, Impreza WRX |
+| at 200,000 miles | MR2 Turbo, WRX STI, Jaguar F-Type S |
+
+Cars are clamped to the odometer their own generation could plausibly show, so
+a 2023 hatchback never appears at 190,000 miles and a 1994 roadster never
+appears at 5,000. The card prints the odometer it was actually priced at.
+
+The same curve run backwards answers the other half, and it is what the empty
+state offers when a slot has nothing in it:
 
 ```
 milesAffordable(B) = baselineMiles + 10000 * ln((B - floor) / (base - floor))
                                             / ln(1 - decay)
 ```
-
-So a slot does not ask "which cars cost under $18,000." It asks **"at $18,000,
-what odometer does each car require."** Run against calibrated curves, that one
-budget returns an 18,000 mile MX-5, a 108,000 mile Civic Si, and a 115,000 mile
-E63 AMG, each labeled with the mileage the budget actually buys.
 
 `decay` is authored per generation, which is why a high-mileage Land Cruiser and
 a high-mileage 7 Series behave like different products instead of the same

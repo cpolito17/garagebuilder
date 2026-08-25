@@ -20,20 +20,21 @@ const H = 220;
 const PAD = { top: 14, right: 16, bottom: 30, left: 56 };
 
 export function PriceCurveChart({
-  curve, firstYear, budget, selectedPrice, atMiles, ceilingMiles,
+  curve, firstYear, budget, selectedPrice, atMiles, odometer,
 }: {
   curve: PriceCurve;
   firstYear: number;
   budget: number;
   selectedPrice: number;
   atMiles: number;
-  ceilingMiles: number;
+  /** The slot's odometer, so the chart covers the range the dial can reach. */
+  odometer: number;
 }) {
   const titleId = useId();
   const svgRef = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ m: number; p: number; x: number; y: number } | null>(null);
 
-  const maxMiles = Math.min(plausibleMaxMiles(firstYear), Math.max(ceilingMiles, atMiles * 1.25, 60_000));
+  const maxMiles = Math.min(plausibleMaxMiles(firstYear), Math.max(odometer, atMiles * 1.25, 60_000));
   const top = ceilingPrice(curve);
   const bottom = curve.floor * 0.9;
 
@@ -165,10 +166,11 @@ export function PriceCurveChart({
       <figcaption className="t-small text-[--text-tertiary] m-0">
         {inRange ? (
           <>
-            The <span style={{ color: 'var(--accent)' }}>{formatUsd(selectedPrice)} estimate</span> lands at about{' '}
-            <span className="num">{Math.round(atMiles / 1000)},000 miles</span>
-            {selectedPrice < budget ? ` and leaves ${formatUsd(budget - selectedPrice)} in this slot` : ''}. The dotted floor is
-            what the market pays regardless of odometer.
+            At <span className="num">{Math.round(atMiles / 1000)},000 miles</span> this car is an{' '}
+            <span style={{ color: 'var(--accent)' }}>{formatUsd(selectedPrice)} estimate</span>
+            {selectedPrice < budget ? `, leaving ${formatUsd(budget - selectedPrice)} in this slot` : ''}. Move the
+            slot&apos;s odometer and the whole curve is re-read. The dotted floor is what the market
+            pays regardless of odometer.
           </>
         ) : (
           <>

@@ -219,15 +219,28 @@ Defined only when `B > floor`. When `B <= floor` the car is out of reach at any
 odometer. When `B >= base * lowMileCap` the car is affordable at delivery
 mileage and the answer clamps to 0.
 
-So the slot does not ask "which cars cost less than $18,000." It asks
-**"at $18,000, what odometer does each car require, and is that odometer
-inside my tolerance."** A slot at $18,000 with a 150,000 mile ceiling returns
-a clean Civic Si at 60,000 miles and an E63 AMG at 140,000 miles in the same
-list, each labeled with the mileage the budget actually buys.
+The inversion is not what the slot runs on any more, but it is still the reason
+the product works, and it is still used in one place: when a slot is empty, it
+answers "what odometer would bring this car into this budget", which is exactly
+the offer the empty state makes.
 
-That single inversion is what makes the mileage control interesting instead of
-being a filter, and it is the reason the app can say something a listings site
-cannot.
+**What the slot runs on now.** The user sets the odometer, and every vehicle is
+priced at it. That is the forward equation, not the inversion, and it is the
+change that made the control honest: as a ceiling it was a filter wearing a
+dial's clothes, because dragging it made cars appear and disappear while the
+prices never moved. As an odometer, dragging it moves the prices, which is the
+thing the user is actually trying to tune.
+
+The two directions are the same curve read two ways, and both are needed:
+
+| Question | Function | Used by |
+| --- | --- | --- |
+| What does this car cost at 120,000 miles? | `priceAtMiles` | Every result in every list |
+| What odometer puts this car inside $18,000? | `milesAffordable` | The empty state's offer |
+
+A $19,400 sports slot at 20,000 miles reaches a Prelude, a 335i and an NC
+Miata. The same money at 200,000 miles reaches an MR2 Turbo, a WRX STI and a
+Jaguar F-Type S. Same budget, same catalog, one control.
 
 ### 3.2a Worked calibration
 
@@ -269,6 +282,13 @@ Three findings from this calibration that shape the product:
    state should be able to say that the budget is below a car's floor rather
    than implying no such car exists.
 
+This calibration predates the odometer control and is still the right test of
+the curves, because it is the curves being calibrated rather than the UI. Read
+it as a column of `milesAffordable` outputs: the same numbers now drive the
+empty state's offer instead of the result list, and the same contrast between
+an 18,000 mile MX-5 and a 115,000 mile AMG is what the dial now produces
+directly, by sweeping the odometer at a fixed budget instead of the reverse.
+
 Round-trip identity holds exactly across the invertible working range:
 `price(milesAffordable(B)) === B` for every B between `floor` and
 `base * lowMileCap`. Outside that range the clamps bind, which is correct
@@ -291,9 +311,9 @@ it ranked first in early testing because it consumed the least budget.
 museum piece and not what this tool is for. A current-model-year generation
 returns 0, so a new car can still show delivery mileage.
 
-The clamp can push a vehicle back above the slot's mileage ceiling: the budget
-reaches it, but the lowest-mileage example that exists is still over the limit
-the user set. That is reported as `over-ceiling`, not silently dropped.
+Under the odometer model this clamp is visible rather than exclusionary: a car
+that cannot be as new as the dial asks is priced at the lowest odometer it could
+plausibly show, and the card prints that number.
 
 ### 3.3 Displayed price
 
@@ -328,30 +348,39 @@ more than three years ago. Author it as one record. The curve handles both.
 
 ## 4. Matching a vehicle to a slot
 
-A slot holds a budget, a role, a mileage ceiling, and a set of hard filters.
+A slot holds a budget, a role, an odometer, and a set of hard filters.
 
 ```
 function matches(vehicle, slot):
   if slot.role and slot.role not in vehicle.roles:        return false
   if not passesHardFilters(vehicle.spec, slot.filters):   return false
 
-  m = milesAffordable(vehicle.pricing, slot.budget)
-  if m is undefined:                                      return false   // budget below floor
-  if m > slot.maxMiles:                                   return false
-  if m > vehicle.pricing.plausibleMaxMiles:               return false   // see below
+  m     = plausibleOdometer(slot.odometer, vehicle.years)
+  price = estimatedPrice(vehicle.pricing, m)
+  if price > slot.budget:                                 return over-budget
 
-  return { vehicle, atMiles: max(0, m), price: estimatedPrice(vehicle, m) }
+  return { vehicle, atMiles: m, price }
 ```
 
-`plausibleMaxMiles` is derived, not authored:
+No single odometer is plausible for every car in a list, so each vehicle is
+priced at the closest odometer its own generation could be showing:
 
 ```
-plausibleMaxMiles = min(300000, (currentYear - years[0] + 1) * 22000)
+plausibleOdometer(odo, [firstYear, lastYear])
+  = clamp(odo, plausibleMinMiles(lastYear), plausibleMaxMiles(firstYear))
+
+plausibleMaxMiles = min(300000, (currentYear - firstYear + 1) * 22000)
+plausibleMinMiles = max(0, (currentYear - lastYear) * 1500)
 ```
 
-This stops the model from cheerfully offering a 2023 car at 190,000 miles
-because the math allows it. A car cannot have covered more miles than time
-permits.
+This stops the model from cheerfully offering a 2023 car at 190,000 miles, or a
+1994 car at 5,000, because the math allows it. The clamp is not hidden: every
+result card prints the odometer it was actually priced at, so a car that could
+not reach the dial's setting says so by showing a different number.
+
+The dial's range is 0 to 300,000, matching the hard cap above. A shorter dial
+would make "no odometer brings this car into budget" a statement about the
+control rather than about the car.
 
 ### Ranking
 
@@ -361,11 +390,14 @@ budget is above the catalog's ceiling. Results sort in five-percent price
 bands, nearest to that target first. A quality score orders each band:
 
 ```
-score = 0.65 * budgetFit        // how completely it uses the attainable target
-      + 0.20 * roleFit          // primary role match beats secondary role match
-      + 0.10 * mileageComfort   // how far under the slot ceiling the required odometer sits
-      + 0.05 * ownershipIndex   // normalized reliability, parts, maintenance
+score = 0.70 * budgetFit        // how completely it uses the attainable target
+      + 0.22 * roleFit          // primary role match beats secondary role match
+      + 0.08 * ownershipIndex   // normalized reliability, parts, maintenance
 ```
+
+There is no mileage term. Every car in a list is priced at the same odometer,
+so mileage is the constant the user set rather than a way to separate results.
+The weight it used to carry moved to the two terms that still discriminate.
 
 `budgetFit` peaks at roughly 85 to 100 percent of the attainable target. It is
 continuous below that band, so a $30,000 car and a $100,000 car do not tie at
@@ -561,7 +593,7 @@ type SlotState = {
   share: number;               // 0..1 of remaining budget, fluid slots only
   pinned: boolean;
   pick: VehicleId | null;
-  maxMiles: number;
+  odometer: number;
   filters: Partial<Filters>;   // only non-default values are serialized
 };
 ```

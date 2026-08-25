@@ -25,11 +25,11 @@ const SEVERITY_LABEL: Record<string, string> = {
  * relationship between the card and its detail.
  */
 export function DetailModal({
-  match, slotBudget, slotMaxMiles, origin, starred, onStar, onClose,
+  match, slotBudget, slotOdometer, origin, starred, onStar, onClose,
 }: {
   match: Match | null;
   slotBudget: number;
-  slotMaxMiles: number;
+  slotOdometer: number;
   origin: DOMRect | null;
   starred: boolean;
   onStar: () => void;
@@ -210,7 +210,7 @@ export function DetailModal({
                     budget={slotBudget}
                     selectedPrice={match.spend}
                     atMiles={match.atMiles}
-                    ceilingMiles={slotMaxMiles}
+                    odometer={slotOdometer}
                   />
                 </section>
 

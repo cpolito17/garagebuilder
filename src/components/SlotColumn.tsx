@@ -7,7 +7,7 @@ import { findMatches, explainEmpty, type Filters, type Match } from '../lib/matc
 import { formatUsd } from '../lib/pricing';
 import type { SlotState } from '../state/garage';
 import { AllocationSlider } from './AllocationSlider';
-import { MileageDial } from './MileageDial';
+import { OdometerDial } from './OdometerDial';
 import { ResultCard } from './ResultCard';
 import { EmptyState } from './EmptyState';
 import { FilterPanel } from './FilterPanel';
@@ -16,7 +16,7 @@ const RESULT_LIMIT = 12;
 
 export function SlotColumn({
   slot, index, budget, allocated, headroom, minSlot, over,
-  onBudgetChange, onBudgetCommit, onRole, onMaxMiles, onFilters, onStar, onUnstar, onOpenDetail,
+  onBudgetChange, onBudgetCommit, onRole, onOdometer, onFilters, onStar, onUnstar, onOpenDetail,
 }: {
   slot: SlotState;
   index: number;
@@ -28,7 +28,7 @@ export function SlotColumn({
   onBudgetChange: (v: number) => void;
   onBudgetCommit: (v: number) => void;
   onRole: (r: Role | null) => void;
-  onMaxMiles: (v: number) => void;
+  onOdometer: (v: number) => void;
   onFilters: (f: Filters) => void;
   onStar: (vehicleId: string, spend: number) => void;
   onUnstar: () => void;
@@ -36,15 +36,15 @@ export function SlotColumn({
 }) {
   const list = useMemo(
     () => findMatches(CATALOG, {
-      budget: allocated, role: slot.role, maxMiles: slot.maxMiles, filters: slot.filters,
+      budget: allocated, role: slot.role, odometer: slot.odometer, filters: slot.filters,
     }),
-    [allocated, slot.role, slot.maxMiles, slot.filters],
+    [allocated, slot.role, slot.odometer, slot.filters],
   );
 
   const pick = slot.pick ? list.matches.find((m) => m.vehicle.id === slot.pick) : undefined;
   const shown = slot.pinned && pick ? [pick] : list.matches.slice(0, RESULT_LIMIT);
   const empty = explainEmpty(list, {
-    budget: allocated, role: slot.role, maxMiles: slot.maxMiles, filters: slot.filters,
+    budget: allocated, role: slot.role, odometer: slot.odometer, filters: slot.filters,
   });
 
   return (
@@ -92,12 +92,12 @@ export function SlotColumn({
 
           {!slot.pinned && (
             <>
-              <MileageDial value={slot.maxMiles} onChange={onMaxMiles} />
+              <OdometerDial value={slot.odometer} onChange={onOdometer} />
               <FilterPanel
                 filters={slot.filters}
                 role={slot.role}
                 budget={allocated}
-                maxMiles={slot.maxMiles}
+                odometer={slot.odometer}
                 onChange={onFilters}
               />
             </>
@@ -119,7 +119,7 @@ export function SlotColumn({
           <EmptyState
             message={empty.message}
             action={empty.action ? { label: empty.action.label, value: empty.action.value } : undefined}
-            onAction={onMaxMiles}
+            onAction={onOdometer}
           />
         ) : (
           <AnimatePresence initial={false} mode="popLayout">

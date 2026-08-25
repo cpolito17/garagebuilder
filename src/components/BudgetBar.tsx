@@ -3,7 +3,7 @@ import { Minus, Plus, ArrowClockwise } from '@phosphor-icons/react';
 import { m } from 'motion/react';
 import { formatUsd } from '../lib/pricing';
 import type { Allocation, GarageState } from '../state/garage';
-import { MAX_SLOTS } from '../state/garage';
+import { MAX_SLOTS, MAX_BUDGET, MIN_SLOT, steppedBudget } from '../state/garage';
 
 /**
  * Fixed chrome. Content scrolls under it, per docs/DESIGN.md 6.4.
@@ -29,8 +29,13 @@ export function BudgetBar({
   const commitBudget = () => {
     const digits = budgetDraft.replace(/[^0-9]/g, '');
     const next = Number(digits);
-    if (digits && Number.isFinite(next)) onBudget(Math.min(2_000_000, Math.max(1500, next)));
+    if (digits && Number.isFinite(next)) onBudget(Math.min(MAX_BUDGET, Math.max(MIN_SLOT, next)));
     setEditingBudget(false);
+  };
+
+  const step = (direction: 1 | -1) => {
+    setEditingBudget(false);
+    onBudget(steppedBudget(state.budget, direction));
   };
 
   return (
@@ -39,26 +44,48 @@ export function BudgetBar({
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div className="flex flex-col gap-1">
             <label htmlFor="budget" className="t-label text-[--text-tertiary]">Total budget</label>
-            <div className="flex items-baseline gap-1">
-              <span className="num t-h2 text-[--text-tertiary] md:t-h1">$</span>
-              <input
-                id="budget"
-                type="text"
-                inputMode="numeric"
-                value={budgetDraft}
-                onFocus={(e) => { setEditingBudget(true); e.currentTarget.select(); }}
-                onChange={(e) => setBudgetDraft(e.target.value.replace(/[^0-9,]/g, ''))}
-                onBlur={commitBudget}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur();
-                  if (e.key === 'Escape') {
-                    setBudgetDraft(state.budget.toLocaleString('en-US'));
-                    e.currentTarget.blur();
-                  }
-                }}
-                className="num t-h2 h-11 w-[7ch] bg-transparent text-[--text-primary] outline-none md:t-h1"
-                style={{ borderBottom: '1px solid var(--hairline)' }}
-              />
+            <div className="flex items-center gap-1.5">
+              <StepButton
+                label={`Lower the budget to ${formatUsd(steppedBudget(state.budget, -1))}`}
+                disabled={state.budget <= MIN_SLOT}
+                onClick={() => step(-1)}
+              >
+                <Minus size={15} />
+              </StepButton>
+              <div className="flex items-baseline gap-1">
+                <span className="num t-h2 text-[--text-tertiary] md:t-h1">$</span>
+                <input
+                  id="budget"
+                  type="text"
+                  inputMode="numeric"
+                  value={budgetDraft}
+                  onFocus={(e) => { setEditingBudget(true); e.currentTarget.select(); }}
+                  onChange={(e) => setBudgetDraft(e.target.value.replace(/[^0-9,]/g, ''))}
+                  onBlur={commitBudget}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.currentTarget.blur();
+                    if (e.key === 'Escape') {
+                      setBudgetDraft(state.budget.toLocaleString('en-US'));
+                      e.currentTarget.blur();
+                    }
+                    // The steppers are the primary control, so the arrow keys
+                    // have to agree with them rather than move by one dollar.
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                      e.preventDefault();
+                      step(e.key === 'ArrowUp' ? 1 : -1);
+                    }
+                  }}
+                  className="num t-h2 h-11 w-[7ch] bg-transparent text-[--text-primary] outline-none md:t-h1"
+                  style={{ borderBottom: '1px solid var(--hairline)' }}
+                />
+              </div>
+              <StepButton
+                label={`Raise the budget to ${formatUsd(steppedBudget(state.budget, 1))}`}
+                disabled={state.budget >= MAX_BUDGET}
+                onClick={() => step(1)}
+              >
+                <Plus size={15} />
+              </StepButton>
             </div>
           </div>
 

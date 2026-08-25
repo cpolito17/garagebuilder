@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { encodeGarage, decodeGarage, challengeFrom, shareUrlFor } from './urlState';
-import { initialGarage, pinSlot, setSlotFilters, setSlotMaxMiles, DEFAULT_MAX_MILES, MIN_SLOT } from '../state/garage';
+import { initialGarage, pinSlot, setSlotFilters, setSlotOdometer, DEFAULT_ODOMETER, MAX_ODOMETER, MIN_SLOT } from '../state/garage';
 import { DEFAULT_FILTERS } from './matching';
 import { CATALOG } from '../data/catalog';
 
@@ -13,7 +13,7 @@ const sameGarage = (a: ReturnType<typeof initialGarage>, b: ReturnType<typeof in
     expect(got.target, `slot ${i} target`).toBe(slot.target);
     expect(got.pick, `slot ${i} pick`).toBe(slot.pick);
     expect(got.pinned, `slot ${i} pinned`).toBe(slot.pinned);
-    expect(got.maxMiles, `slot ${i} miles`).toBe(slot.maxMiles);
+    expect(got.odometer, `slot ${i} odometer`).toBe(slot.odometer);
     expect(got.filters, `slot ${i} filters`).toEqual(slot.filters);
   });
 };
@@ -31,10 +31,10 @@ describe('round trip', () => {
     }
   });
 
-  it('survives pins, filters and mileage limits together', () => {
+  it('survives pins, filters and odometers together', () => {
     let g = initialGarage(60_000, 4);
     g = pinSlot(g, g.slots[0]!.id, 'mazda-mx5-nc', 14_000);
-    g = setSlotMaxMiles(g, g.slots[1]!.id, 200_000);
+    g = setSlotOdometer(g, g.slots[1]!.id, 200_000);
     g = setSlotFilters(g, g.slots[2]!.id, {
       ...DEFAULT_FILTERS, transmissions: ['manual'], drivetrains: ['RWD'], minSeats: 4, minYear: 2005,
     });
@@ -53,7 +53,7 @@ describe('link length', () => {
   it('does not pay for values that are already the default', () => {
     const plain = initialGarage(50_000, 3);
     let heavy = initialGarage(50_000, 3);
-    heavy = setSlotMaxMiles(heavy, heavy.slots[0]!.id, 250_000);
+    heavy = setSlotOdometer(heavy, heavy.slots[0]!.id, 250_000);
     heavy = setSlotFilters(heavy, heavy.slots[1]!.id, { ...DEFAULT_FILTERS, bodyStyles: ['coupe', 'wagon'] });
     expect(encodeGarage(plain).length).toBeLessThan(encodeGarage(heavy).length);
   });
@@ -92,7 +92,7 @@ describe('a link must open forever', () => {
     const raw = '1.' + btoa(JSON.stringify(wire)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const back = decodeGarage(raw)!;
     expect(back.slots[0]!.role).toBeNull();
-    expect(back.slots[0]!.maxMiles).toBe(DEFAULT_MAX_MILES);
+    expect(back.slots[0]!.odometer).toBe(DEFAULT_ODOMETER);
     expect(back.slots[0]!.filters).toEqual(DEFAULT_FILTERS);
   });
 
@@ -102,7 +102,7 @@ describe('a link must open forever', () => {
     const back = decodeGarage(raw)!;
     expect(back.budget).toBeLessThanOrEqual(2_000_000);
     expect(back.slots[0]!.target).toBeGreaterThanOrEqual(0);
-    expect(back.slots[0]!.maxMiles).toBeLessThanOrEqual(400_000);
+    expect(back.slots[0]!.odometer).toBeLessThanOrEqual(MAX_ODOMETER);
   });
 
   it('caps the slot count so a crafted link cannot render a hundred columns', () => {
@@ -158,11 +158,11 @@ describe('the challenge', () => {
 
   it('resets private mileage, filter, and allocation choices', () => {
     const g = initialGarage(40_000, 2);
-    g.slots[0]!.maxMiles = 42_000;
+    g.slots[0]!.odometer = 42_000;
     g.slots[0]!.filters = { ...g.slots[0]!.filters, minYear: 2020, minSeats: 7 };
     g.slots[0]!.target = 35_000;
     const c = challengeFrom(g);
-    expect(c.slots[0]!.maxMiles).toBe(120_000);
+    expect(c.slots[0]!.odometer).toBe(DEFAULT_ODOMETER);
     expect(c.slots[0]!.filters.minYear).toBe(1990);
     expect(c.slots[0]!.filters.minSeats).not.toBe(7);
     expect(c.slots.reduce((sum, slot) => sum + slot.target, 0)).toBe(c.budget);
