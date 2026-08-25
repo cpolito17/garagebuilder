@@ -370,76 +370,75 @@ export const groupR: unknown[] = [
     }
   },
   {
-    "id": "audi-a6-c7",
-    "make": "Audi",
-    "model": "A6",
-    "generation": "fourth generation (C7)",
+    "id": "lexus-is350-xe20",
+    "make": "Lexus",
+    "model": "IS 350",
+    "generation": "second generation (XE20)",
     "years": [
-      2012,
-      2018
+      2006,
+      2013
     ],
     "status": "discontinued",
     "roles": [
-      "family",
       "commuter",
-      "winter",
-      "grand-tourer"
+      "sports",
+      "winter"
     ],
     "bodyStyle": "sedan",
     "spec": {
       "seats": 5,
       "doors": 4,
-      "drivetrain": "AWD",
+      "drivetrain": "RWD",
       "transmissions": [
         "automatic"
       ],
-      "cylinders": 4,
-      "displacementL": 2,
-      "aspiration": "turbo",
-      "horsepower": 252,
-      "torqueLbFt": 273,
-      "curbWeightLb": 3900,
+      "cylinders": 6,
+      "displacementL": 3.5,
+      "aspiration": "na",
+      "horsepower": 306,
+      "torqueLbFt": 277,
+      "curbWeightLb": 3650,
       "fuel": "gas",
-      "mpgCombined": 25,
+      "mpgCombined": 21,
       "towingLb": null,
-      "cargoCuFt": 14.1,
-      "groundClearanceIn": 4.6
+      "cargoCuFt": 13.3,
+      "groundClearanceIn": 5.3
     },
     "pricing": {
-      "base": 17000,
-      "baselineMiles": 70000,
-      "floor": 6000,
-      "decay": 0.13,
+      "base": 18000,
+      "baselineMiles": 80000,
+      "floor": 7000,
+      "decay": 0.11,
       "lowMileCap": 1.5,
       "spread": 0.24
     },
     "ownership": {
-      "reliabilityIndex": 3,
+      "reliabilityIndex": 4,
       "insuranceIndex": 4,
-      "partsAvailability": 3,
-      "annualMaintenanceUsd": 1800,
-      "diyFriendliness": 2
+      "partsAvailability": 4,
+      "annualMaintenanceUsd": 1200,
+      "diyFriendliness": 3
     },
     "notes": {
-      "summary": "The C7 A6 is a refined all-wheel-drive sedan whose four-cylinder turbo is more efficient than the old V6 while retaining a real luxury cabin.",
+      "summary": "The XE20 IS 350 is a compact rear-wheel-drive luxury sedan with a naturally aspirated V6, usable back seats, and a lower ownership burden than many European rivals.",
       "knownIssues": [
         {
-          "text": "Water-pump, thermostat, and cooling-module leaks are routine age-related costs",
-          "onsetMiles": 70000,
-          "typicalCostUsd": 1800,
+          "text": "Water-pump leaks, radiator aging, and cooling-system plastics become common on older V6 cars",
+          "onsetMiles": 80000,
+          "typicalCostUsd": 1400,
           "severity": "expensive"
         },
         {
-          "text": "Timing-chain tensioner, oil-consumption, and MMI faults can become major bills on neglected cars",
+          "text": "Dashboard and door-panel materials can crack or become sticky in hot climates",
           "onsetMiles": 90000,
-          "typicalCostUsd": 3500,
-          "severity": "car-ending"
+          "typicalCostUsd": 1800,
+          "severity": "expensive"
         }
       ],
       "whatToLookFor": [
-        "The 2.0T is the ownership baseline; six-cylinder and S-line cars change the risk profile",
-        "Require a scan for timing, cooling, and transmission faults",
-        "Check quattro service, sunroof drains, and all electronic screens"
+        "The 2008 facelift and available AWD change equipment, but not the basic generation",
+        "Check water-pump seepage, suspension bushings, and automatic-transmission shifts",
+        "Inspect dashboard condition and verify the Mark Levinson, navigation, and seat electronics"
       ]
     }
   },
