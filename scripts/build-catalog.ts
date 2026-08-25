@@ -30,8 +30,10 @@ import { groupM } from '../src/data/vehicles/group-m';
 import { groupN } from '../src/data/vehicles/group-n';
 import { groupO } from '../src/data/vehicles/group-o';
 import { groupP } from '../src/data/vehicles/group-p';
+import { groupQ } from '../src/data/vehicles/group-q';
+import { groupR } from '../src/data/vehicles/group-r';
 
-const RAW = [...groupA, ...groupB, ...groupC, ...groupD, ...groupE, ...groupF, ...groupG, ...groupH, ...groupI, ...groupJ, ...groupK, ...groupL, ...groupM, ...groupN, ...groupO, ...groupP];
+const RAW = [...groupA, ...groupB, ...groupC, ...groupD, ...groupE, ...groupF, ...groupG, ...groupH, ...groupI, ...groupJ, ...groupK, ...groupL, ...groupM, ...groupN, ...groupO, ...groupP, ...groupQ, ...groupR];
 
 const seen = new Set<string>();
 const parsed: AuthoredVehicle[] = RAW.map((record, i) => {

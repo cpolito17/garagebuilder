@@ -1,7 +1,7 @@
 import type { DataSource } from './types';
 
 /** Catalog-level provenance. Individual observations were not retained by the original dataset. */
-export const CATALOG_UPDATED_AT = '2026-08-24';
+export const CATALOG_UPDATED_AT = '2026-08-25';
 
 export const CATALOG_SOURCES: DataSource[] = [
   {
