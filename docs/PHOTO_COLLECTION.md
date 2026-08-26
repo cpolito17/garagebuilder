@@ -2,9 +2,9 @@
 
 Garage Challenge uses Wikimedia Commons photography under CC0, public-domain,
 CC BY, or CC BY-SA terms. The app stores every author, licence, source page and
-alt description in `src/data/generated/images.json`. Photo binaries live in
-`public/vehicles/` while collecting or deploying, but stay out of Git as the
-repository's existing data and licensing plan requires.
+alt description in `src/data/generated/images.json`. Reviewed photo binaries
+live in `public/vehicles/` and are committed with that manifest so a clean
+checkout, preview build and production deployment all show the same images.
 
 ## Review one vehicle
 
@@ -37,16 +37,11 @@ This processes records without manifest entries and records whose local files
 are missing. Every result is still a candidate until a person reviews it. For a
 small batch, prefer repeated `--only` runs so the review set stays bounded.
 
-On a clean checkout, re-fetch reviewed records one at a time with `--only` and
-review them again before building. Commons search results can change, so the
-manifest preserves attribution and source decisions but is not a byte-for-byte
-binary archive.
-
-Commit the manifest, collector changes and review exclusions. Do not commit
-`public/vehicles/`. A deployment that should contain the pilot photography must
-build from the reviewed collection workspace so those ignored binaries are
-present in the deployment artifact. Do not add an unbounded image fetch to a
-production deployment until the resulting catalog has been reviewed.
+Commit each reviewed batch atomically: the manifest, the matching files in
+`public/vehicles/`, collector changes, and review exclusions. This guarantees
+that attribution never points at an asset omitted from the build. Do not add an
+unbounded image fetch to a production deployment; every candidate still needs
+the visual and licensing review above before it is committed.
 
 ## Pilot batch — 2026-08-25
 

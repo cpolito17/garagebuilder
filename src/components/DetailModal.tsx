@@ -3,11 +3,12 @@ import { m, AnimatePresence, useReducedMotion } from 'motion/react';
 import { X, Warning, Star, ArrowSquareOut } from '@phosphor-icons/react';
 import type { Match } from '../lib/matching';
 import type { VehicleDetails } from '../data/types';
+import type { VehicleImage } from '../data/images';
 import { loadDetails } from '../data/catalog';
 import { galleryFor, creditLine, requiresAttribution, LICENCE_URL } from '../data/images';
 import { formatUsd, formatMiles } from '../lib/pricing';
 import { PriceCurveChart } from './PriceCurveChart';
-import { VehiclePhoto } from './VehiclePhoto';
+import { VehiclePhoto, type PhotoStatus } from './VehiclePhoto';
 import { Chip } from './primitives';
 import { listingSearchUrl } from '../lib/listings';
 
@@ -170,26 +171,7 @@ export function DetailModal({
                     ? 'flex snap-x snap-mandatory gap-3 overflow-x-auto no-scrollbar'
                     : 'flex'}>
                     {gallery.map((img) => (
-                      <div
-                        key={img.file}
-                        className={`${gallery.length > 1 ? 'w-[86%] shrink-0 snap-center' : 'w-full'} overflow-hidden`}
-                        style={{ borderRadius: 14 }}
-                      >
-                        <VehiclePhoto image={img} sizes="620px" rounded={false} aspect="16 / 9" />
-                        {requiresAttribution(img.licence) && (
-                          <p className="m-0 px-1 pt-1.5 t-small text-[--text-tertiary]">
-                            {creditLine(img)}
-                            {LICENCE_URL[img.licence] && (
-                              <>
-                                {' '}
-                                <a href={img.sourceUrl} target="_blank" rel="noreferrer noopener" className="underline">
-                                  source
-                                </a>
-                              </>
-                            )}
-                          </p>
-                        )}
-                      </div>
+                      <DetailPhoto key={img.file} image={img} multiple={gallery.length > 1} />
                     ))}
                   </div>
                 )}
@@ -398,6 +380,40 @@ function Spec({ k, v }: { k: string; v: string }) {
     <div className="flex flex-col">
       <dt className="t-small text-[--text-tertiary]">{k}</dt>
       <dd className="num m-0 t-body text-[--text-primary]">{v}</dd>
+    </div>
+  );
+}
+
+function DetailPhoto({ image, multiple }: { image: VehicleImage; multiple: boolean }) {
+  const [status, setStatus] = useState<PhotoStatus>('loading');
+
+  if (status === 'failed') return null;
+
+  return (
+    <div
+      className={`${multiple ? 'w-[86%] shrink-0 snap-center' : 'w-full'} overflow-hidden`}
+      style={{ borderRadius: 14 }}
+    >
+      <VehiclePhoto
+        image={image}
+        sizes="620px"
+        rounded={false}
+        aspect="16 / 9"
+        onStatusChange={setStatus}
+      />
+      {status === 'loaded' && requiresAttribution(image.licence) && (
+        <p className="m-0 px-1 pt-1.5 t-small text-[--text-tertiary]">
+          {creditLine(image)}
+          {LICENCE_URL[image.licence] && (
+            <>
+              {' '}
+              <a href={image.sourceUrl} target="_blank" rel="noreferrer noopener" className="underline">
+                source
+              </a>
+            </>
+          )}
+        </p>
+      )}
     </div>
   );
 }

@@ -7,11 +7,10 @@
  *   npm run images -- --only mazda-mx5-nc
  *
  * Writes image files to public/vehicles/ and a manifest to
- * src/data/generated/images.json. The manifest is committed; the binaries are
- * not, because hundreds of vehicles of photography is too much binary data for
- * Git. The manifest preserves the chosen sources and credits, while this tool
- * can re-fetch candidates when needed. A build without images falls back to the
- * typographic identity band, so this never blocks anything.
+ * src/data/generated/images.json. Review and commit both together: the manifest
+ * supplies attribution while the binaries make clean checkouts and deployments
+ * self-contained. A vehicle without an installed image falls back to the
+ * designed typographic identity band.
  *
  * Selection and licence filtering live in scripts/lib/commons.ts and are unit
  * tested. Only files under CC0, public domain, CC BY or CC BY-SA are accepted.

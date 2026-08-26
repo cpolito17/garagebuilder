@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { VehicleImage } from '../data/images';
+
+export type PhotoStatus = 'missing' | 'loading' | 'loaded' | 'failed';
 
 /**
  * A real photograph, when one exists.
@@ -13,15 +15,27 @@ import type { VehicleImage } from '../data/images';
  * does not shift as photos decode.
  */
 export function VehiclePhoto({
-  image, sizes = '(min-width: 768px) 400px, 100vw', priority = false, rounded = true, aspect = '16 / 10',
+  image,
+  sizes = '(min-width: 768px) 400px, 100vw',
+  priority = false,
+  rounded = true,
+  aspect = '16 / 10',
+  onStatusChange,
 }: {
   image: VehicleImage | undefined;
   sizes?: string;
   priority?: boolean;
   rounded?: boolean;
   aspect?: string;
+  onStatusChange?: (status: PhotoStatus) => void;
 }) {
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    setFailed(false);
+    onStatusChange?.(image ? 'loading' : 'missing');
+  }, [image?.file, onStatusChange]);
+
   if (!image || failed) return null;
 
   const src = `/vehicles/${image.file}`;
@@ -47,7 +61,11 @@ export function VehiclePhoto({
         alt={image.alt}
         loading={priority ? 'eager' : 'lazy'}
         decoding="async"
-        onError={() => setFailed(true)}
+        onLoad={() => onStatusChange?.('loaded')}
+        onError={() => {
+          setFailed(true);
+          onStatusChange?.('failed');
+        }}
         className="h-full w-full object-cover"
       />
     </div>

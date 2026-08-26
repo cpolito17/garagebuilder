@@ -12,15 +12,15 @@ budget, same slots, beat it.
 generations, the allocation mechanic, the detail view, the garage summary, the
 landing page and the whole share and challenge loop work end to end.
 
-Photographs are the one thing missing, and only because the build environment's
-network policy blocks every image host. The system around them is complete: run
-`npm run images` where there is network access and they appear. Until then every
-vehicle renders its typographic identity band, which is a designed state.
+The first reviewed photo batch is installed for eight vehicles. Each of those
+vehicles has a full-width hero in the result grid and a three-image gallery in
+its detail view. The remaining vehicles render the typographic identity band,
+which is the designed fallback while the collection grows.
 
 ```bash
 npm install
 npm run dev          # development server
-npm test             # 174 tests
+npm test             # 175 tests
 npm run build        # validates the catalog, typechecks, builds
 npm run preview      # then, against the running preview:
                      #   node scripts/audit.mjs   accessibility audit, both themes
@@ -170,9 +170,9 @@ jobs.
 
 ## Open decisions
 
-1. **Images.** 325 hero images cannot be produced in the current environment.
-   Recommendation is typographic tiles through Phase 3, photography sourced in
-   Phase 4. `DATA-MODEL.md` section 7.
+1. **Images.** The first 24 reviewed photographs cover eight vehicles. Continue
+   the bounded review-and-commit batches described in `PHOTO_COLLECTION.md`;
+   typographic tiles remain the fallback for the rest. `DATA-MODEL.md` section 7.
 2. **Reliability index.** Consumer Reports and J.D. Power data are licensed and
    cannot be republished. The index must come from free inputs (NHTSA complaint
    and recall data, authored known-issue costs) and be labeled as an index.

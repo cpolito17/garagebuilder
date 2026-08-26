@@ -6,7 +6,7 @@ import type { Role } from '../data/types';
 import { formatMiles, formatUsd } from '../lib/pricing';
 import { Chip } from './primitives';
 import { VehicleTile } from './VehicleTile';
-import { VehiclePhoto } from './VehiclePhoto';
+import { VehiclePhoto, type PhotoStatus } from './VehiclePhoto';
 import { heroFor } from '../data/images';
 
 const TRANSMISSION_LABEL: Record<string, string> = {
@@ -51,6 +51,7 @@ export const ResultCard = memo(function ResultCard({
   const { vehicle: v, spend, atMiles, cautions } = match;
   const worst = cautions[0];
   const hero = heroFor(v.id);
+  const [photoStatus, setPhotoStatus] = useState<PhotoStatus>(hero ? 'loading' : 'missing');
 
   return (
     <m.article
@@ -73,8 +74,8 @@ export const ResultCard = memo(function ResultCard({
         />
 
         <div className="pointer-events-none relative z-10">
-          <VehiclePhoto image={hero} priority={index < 2} />
-          <VehicleTile vehicle={v} withPhoto={!!hero} />
+          <VehiclePhoto image={hero} priority={index < 2} onStatusChange={setPhotoStatus} />
+          <VehicleTile vehicle={v} withPhoto={photoStatus === 'loading' || photoStatus === 'loaded'} />
         </div>
 
         {/* pointer-events-none so the card's dead space falls through to the

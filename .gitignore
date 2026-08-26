@@ -8,9 +8,8 @@ src/data/generated/*
 *.local
 .DS_Store
 
-# Vehicle photography is reproducible from src/data/generated/images.json.
-# 250 vehicles of it is ~100MB of binaries that do not belong in git.
-public/vehicles/
+# Reviewed vehicle photography is committed with its manifest so a clean
+# checkout and every deployment contain the files the UI references.
 tsconfig.tsbuildinfo
 
 # Wrangler local state (dev server caches, generated types).
