@@ -4,7 +4,7 @@ import type { Vehicle } from '../data/types';
 /**
  * Identity band. docs/DATA-MODEL.md section 7.
  *
- * Phase 1 ships no photography: 250 hero images cannot be produced yet, and
+ * Phase 1 shipped no photography: hundreds of hero images could not be produced yet, and
  * the type-led treatment has to exist for the share card regardless.
  *
  * An earlier version reserved a 16:10 image area and filled it with a glyph.

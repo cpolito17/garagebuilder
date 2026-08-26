@@ -73,13 +73,23 @@ export function LicencesPage({ onBack }: { onBack: () => void }) {
                   <span className="t-small text-[--text-secondary]">
                     {creditLine(image)}
                     {' · '}
-                    <a href={image.sourceUrl} target="_blank" rel="noreferrer noopener" className="underline">
+                    <a
+                      href={image.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex min-h-11 min-w-11 items-center justify-center px-1 underline"
+                    >
                       file
                     </a>
                     {licenceUrl && (
                       <>
                         {' · '}
-                        <a href={licenceUrl} target="_blank" rel="noreferrer noopener" className="underline">
+                        <a
+                          href={licenceUrl}
+                          target="_blank"
+                          rel="noreferrer noopener"
+                          className="inline-flex min-h-11 min-w-11 items-center justify-center px-1 underline"
+                        >
                           {LICENCE_LABEL[image.licence]}
                         </a>
                       </>

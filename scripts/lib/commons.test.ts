@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  buildQuery, extractYear, normaliseArtist, classifyLicence,
+  buildQueries, extractYear, generationSignals, normaliseArtist, classifyLicence,
   scoreCandidate, pickBest, fileNameFor, type CommonsPage, type VehicleKey,
 } from './commons';
 
@@ -30,8 +30,19 @@ function page(title: string, o: Partial<{
 }
 
 describe('query construction', () => {
-  it('searches on make and model, leaving generation to scoring', () => {
-    expect(buildQuery(nc)).toBe('Mazda MX-5 Miata');
+  it('searches generation, model year, then make and model', () => {
+    expect(buildQueries(nc)).toEqual([
+      'Mazda MX-5 Miata NC convertible',
+      'Mazda MX-5 Miata 2006',
+      'Mazda MX-5 Miata',
+    ]);
+  });
+});
+
+describe('generation signals', () => {
+  it('keeps codes and expands ordinal names', () => {
+    expect(generationSignals('AP1 and AP2')).toEqual(['ap1', 'ap2']);
+    expect(generationSignals('second gen')).toEqual(['second', '2nd']);
   });
 });
 
@@ -108,9 +119,41 @@ describe('candidate rejection', () => {
     expect(rejected(page('File:2019 Mazda MX-5 ND.jpg'))).toMatch(/outside/);
   });
 
+  it('does not mistake Toyota for a toy', () => {
+    const toyota = { ...nc, id: 'toyota-mx5', make: 'Toyota' };
+    expect(scoreCandidate(page('File:2008 Toyota MX-5 front.jpg'), toyota)).not.toHaveProperty('rejected');
+  });
+
+  it('rejects an unverified generation when the title has no year or generation code', () => {
+    expect(rejected(page('File:Mazda MX-5 roadster.jpg'))).toMatch(/generation not verifiable/);
+  });
+
   it('rejects a different car entirely', () => {
     expect(rejected(page('File:2008 Honda Civic Type R.jpg'))).toMatch(/make not in title/);
     expect(rejected(page('File:2008 Mazda RX-8.jpg'))).toMatch(/model not in title/);
+  });
+
+  it('does not accept a different Tesla just because both names contain model', () => {
+    const model3: VehicleKey = {
+      id: 'tesla-model3', make: 'Tesla', model: 'Model 3',
+      generation: 'first gen', years: [2017, 2023], bodyStyle: 'sedan',
+    };
+    expect(scoreCandidate(page('File:2018 Tesla Model S front.jpg'), model3)).toEqual({
+      rejected: 'model not in title',
+    });
+    expect(scoreCandidate(page('File:2018 Tesla Model 3 front.jpg'), model3)).not.toHaveProperty('rejected');
+  });
+
+  it('rejects a performance trim when the record describes the base model', () => {
+    expect(rejected(page('File:2008 Mazda MX-5 Type R front.jpg'))).toMatch(/different trim/);
+  });
+
+  it('requires the performance trim when the record names one', () => {
+    const typeR = { ...nc, model: 'MX-5 Type R' };
+    expect(scoreCandidate(page('File:2008 Mazda MX-5 front.jpg'), typeR)).toEqual({
+      rejected: 'trim not verified (type r)',
+    });
+    expect(scoreCandidate(page('File:2008 Mazda MX-5 Type R front.jpg'), typeR)).not.toHaveProperty('rejected');
   });
 
   it('rejects an unfree or unrecognised licence', () => {
@@ -135,9 +178,9 @@ describe('candidate scoring', () => {
     return r.score;
   };
 
-  it('prefers an in-generation year over no year', () => {
+  it('prefers an in-generation year over a generation code alone', () => {
     expect(scoreOf(page('File:2008 Mazda MX-5.jpg'))).toBeGreaterThan(
-      scoreOf(page('File:Mazda MX-5 roadster.jpg')));
+      scoreOf(page('File:Mazda MX-5 NC roadster.jpg')));
   });
 
   it('prefers a matching generation code', () => {
@@ -148,6 +191,11 @@ describe('candidate scoring', () => {
   it('prefers a front three-quarter angle', () => {
     expect(scoreOf(page('File:2008 Mazda MX-5 front.jpg'))).toBeGreaterThan(
       scoreOf(page('File:2008 Mazda MX-5 rear quarter view.jpg')));
+  });
+
+  it('prefers a neutral angle over a rear view', () => {
+    expect(scoreOf(page('File:2008 Mazda MX-5 side.jpg'))).toBeGreaterThan(
+      scoreOf(page('File:2008 Mazda MX-5 rear.jpg')));
   });
 
   it('carries the licence and cleaned author through', () => {
@@ -161,7 +209,7 @@ describe('candidate scoring', () => {
 describe('gallery selection', () => {
   it('returns the best candidates in order, one per author', () => {
     const pages = [
-      page('File:Mazda MX-5 parked.jpg', { artist: 'A' }),
+      page('File:Mazda MX-5 NC parked.jpg', { artist: 'A' }),
       page('File:2008 Mazda MX-5 NC front.jpg', { artist: 'B' }),
       page('File:2010 Mazda MX-5 side.jpg', { artist: 'C' }),
       page('File:2011 Mazda MX-5 front.jpg', { artist: 'B' }), // same author as the second
