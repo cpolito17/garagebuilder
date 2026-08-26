@@ -8,18 +8,20 @@
  *
  * Writes image files to public/vehicles/ and a manifest to
  * src/data/generated/images.json. The manifest is committed; the binaries are
- * not, because 250 vehicles of photography is a hundred megabytes of git that
- * is reproducible from the manifest at any time. A build without images falls
- * back to the typographic identity band, so this never blocks anything.
+ * not, because hundreds of vehicles of photography is too much binary data for
+ * Git. The manifest preserves the chosen sources and credits, while this tool
+ * can re-fetch candidates when needed. A build without images falls back to the
+ * typographic identity band, so this never blocks anything.
  *
  * Selection and licence filtering live in scripts/lib/commons.ts and are unit
  * tested. Only files under CC0, public domain, CC BY or CC BY-SA are accepted.
  */
-import { writeFileSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { CATALOG } from '../src/data/catalog';
 import type { ImageManifest, VehicleImage } from '../src/data/images';
+import imageExclusions from './image-exclusions.json';
 import {
-  buildQuery, pickBest, altTextFor, fileNameFor,
+  buildQueries, scoreCandidate, pickBest, altTextFor, fileNameFor,
   type CommonsPage, type VehicleKey,
 } from './lib/commons';
 
@@ -31,9 +33,13 @@ const MANIFEST = 'src/data/generated/images.json';
 const USER_AGENT =
   'GarageChallenge/0.1 (https://github.com/cpolito17/garagebuilder; hobby project) node-fetch';
 
-/** Card slot is about 400 CSS px, so 1x and 2x land here. */
-const HERO_WIDTHS = [640, 1280];
-const GALLERY_WIDTH = 1000;
+/**
+ * Card slots are about 400 CSS px. Wikimedia now accepts direct thumbnail
+ * downloads only at its standard width steps, so use the nearest useful 1x,
+ * 2x and gallery sizes instead of constructing arbitrary-width URLs.
+ */
+const HERO_WIDTHS = [500, 960];
+const GALLERY_WIDTH = 960;
 const GALLERY_COUNT = 2;
 
 const args = process.argv.slice(2);
@@ -52,7 +58,10 @@ async function api(params: Record<string, string>): Promise<{ query?: { pages?: 
 
 async function download(url: string, dest: string): Promise<{ ok: boolean; bytes: number }> {
   const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-  if (!res.ok) return { ok: false, bytes: 0 };
+  if (!res.ok) {
+    console.warn(`    download failed: ${res.status} ${res.statusText} (${url})`);
+    return { ok: false, bytes: 0 };
+  }
   const buf = Buffer.from(await res.arrayBuffer());
   writeFileSync(dest, buf);
   return { ok: true, bytes: buf.length };
@@ -74,7 +83,11 @@ async function main() {
 
   const targets = CATALOG.filter((v) => {
     if (only) return v.id === only;
-    return force || !manifest[v.id]?.length;
+    const installed = manifest[v.id] ?? [];
+    const missingLocalFile = installed.some((image) =>
+      !existsSync(`${OUT_DIR}/${image.file}`)
+      || (image.file2x !== undefined && !existsSync(`${OUT_DIR}/${image.file2x}`)));
+    return force || installed.length === 0 || missingLocalFile;
   });
 
   if (targets.length === 0) {
@@ -92,29 +105,53 @@ async function main() {
       generation: v.generation, years: v.years, bodyStyle: v.bodyStyle,
     };
 
-    let pages: CommonsPage[] = [];
-    try {
-      const json = await api({
-        action: 'query',
-        generator: 'search',
-        gsrsearch: buildQuery(key),
-        gsrnamespace: '6',
-        gsrlimit: '40',
-        prop: 'imageinfo',
-        iiprop: 'url|size|extmetadata',
-        iiurlwidth: String(HERO_WIDTHS[1]),
-      });
-      pages = Object.values(json.query?.pages ?? {});
-    } catch (err) {
-      console.log(`  ${v.id}: API error, skipped (${(err as Error).message})`);
-      missed++;
-      await sleep(1200);
-      continue;
+    // Visual review can find problems that filenames cannot express (event
+    // decals, an obstructed car, a misleading crop). Keep those decisions
+    // reproducible rather than hand-editing the generated manifest.
+    const normaliseTitle = (title: string) => title.replace(/_/g, ' ').trim().toLowerCase();
+    const excludedTitles = new Set(
+      ((imageExclusions as Record<string, string[]>)[v.id] ?? []).map(normaliseTitle),
+    );
+    const eligiblePages = (pages: CommonsPage[]) =>
+      pages.filter((page) => !excludedTitles.has(normaliseTitle(page.title)));
+
+    const pagesById = new Map<number, CommonsPage>();
+    for (const query of buildQueries(key)) {
+      try {
+        const json = await api({
+          action: 'query',
+          generator: 'search',
+          gsrsearch: query,
+          gsrnamespace: '6',
+          gsrlimit: '40',
+          prop: 'imageinfo',
+          iiprop: 'url|size|extmetadata',
+          iiurlwidth: String(HERO_WIDTHS[1]),
+        });
+        for (const page of Object.values(json.query?.pages ?? {})) pagesById.set(page.pageid, page);
+        if (pickBest(eligiblePages([...pagesById.values()]), key, 1 + GALLERY_COUNT).length >= 1 + GALLERY_COUNT) break;
+        await sleep(250);
+      } catch (err) {
+        console.log(`  ${v.id}: API query failed (${(err as Error).message})`);
+        await sleep(1200);
+      }
     }
+
+    const pages = eligiblePages([...pagesById.values()]);
 
     const picked = pickBest(pages, key, 1 + GALLERY_COUNT);
     if (picked.length === 0) {
-      console.log(`  ${v.id}: no free, in-generation photo found among ${pages.length} results`);
+      const reasons = new Map<string, number>();
+      for (const page of pages) {
+        const result = scoreCandidate(page, key);
+        if ('rejected' in result) reasons.set(result.rejected, (reasons.get(result.rejected) ?? 0) + 1);
+      }
+      const summary = [...reasons.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([reason, count]) => `${reason}: ${count}`)
+        .join('; ');
+      console.log(`  ${v.id}: no free, in-generation photo found among ${pages.length} results${summary ? ` (${summary})` : ''}`);
       missed++;
       await sleep(400);
       continue;
@@ -158,6 +195,15 @@ async function main() {
       console.log(`  ${v.id}: candidates found but downloads failed`);
       missed++;
       continue;
+    }
+
+    const keptFiles = new Set(images.flatMap((image) =>
+      image.file2x ? [image.file, image.file2x] : [image.file]));
+    for (const previous of manifest[v.id] ?? []) {
+      for (const file of previous.file2x ? [previous.file, previous.file2x] : [previous.file]) {
+        const path = `${OUT_DIR}/${file}`;
+        if (!keptFiles.has(file) && existsSync(path)) unlinkSync(path);
+      }
     }
 
     manifest[v.id] = images;

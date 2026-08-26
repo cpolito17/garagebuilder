@@ -8,7 +8,7 @@ slot has an odometer you set, and the tool shows what that money buys at that
 mileage. Lock one car per slot, then send it to someone as a challenge: same
 budget, same slots, beat it.
 
-**Status:** Phases 1 to 4 built. The math, the catalog of 250 vehicle
+**Status:** Phases 1 to 4 built. The math, the catalog of 325 vehicle
 generations, the allocation mechanic, the detail view, the garage summary, the
 landing page and the whole share and challenge loop work end to end.
 
@@ -20,7 +20,7 @@ vehicle renders its typographic identity band, which is a designed state.
 ```bash
 npm install
 npm run dev          # development server
-npm test             # 167 tests
+npm test             # 174 tests
 npm run build        # validates the catalog, typechecks, builds
 npm run preview      # then, against the running preview:
                      #   node scripts/audit.mjs   accessibility audit, both themes
@@ -49,6 +49,7 @@ and a record that fails schema validation fails the build.
 | [`docs/DESIGN.md`](docs/DESIGN.md) | Design system. Tokens, type, components, motion physics, accessibility, pre-flight checklist. |
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Catalog schema, the price model and its inversion, sourcing, licensing, authoring plan. |
 | [`docs/CATALOG_EXPANSION_TUTORIAL.md`](docs/CATALOG_EXPANSION_TUTORIAL.md) | Agent procedure for researching and adding balanced vehicle batches, with extra high-price coverage. |
+| [`docs/PHOTO_COLLECTION.md`](docs/PHOTO_COLLECTION.md) | Reviewed photo collection, exclusion, restoration and deployment procedure. |
 
 Read `SPEC.md` first. `DATA-MODEL.md` section 3 is the part everything else
 depends on.
@@ -169,7 +170,7 @@ jobs.
 
 ## Open decisions
 
-1. **Images.** 250 hero images cannot be produced in the current environment.
+1. **Images.** 325 hero images cannot be produced in the current environment.
    Recommendation is typographic tiles through Phase 3, photography sourced in
    Phase 4. `DATA-MODEL.md` section 7.
 2. **Reliability index.** Consumer Reports and J.D. Power data are licensed and

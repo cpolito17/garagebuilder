@@ -50,17 +50,54 @@ const PREFER_TITLE = [
   'front', 'three-quarter', 'three quarter', '3q', 'frontal', 'side', 'profile',
 ];
 
+const REAR_TITLE = ['rear', 'back'];
+
+/** Performance variants that must be named by the catalog record to pass. */
+const EXCLUSIVE_TRIMS = [
+  'type r', 'type s', 'gti', 'wrx', 'sti', 'raptor', 'shelby', 'z06', 'zr1',
+  'hellcat', 'trx', 'amg',
+];
+
 const ALLOWED_EXT = ['.jpg', '.jpeg', '.png'];
 
-export function buildQuery(v: VehicleKey): string {
-  // Generation codes help on some marques and hurt on others, so they are a
-  // scoring signal rather than part of the query.
-  return `${v.make} ${v.model}`.replace(/\s+/g, ' ').trim();
+const GENERIC_MODEL_TOKENS = new Set([
+  'model', 'series', 'class', 'grand', 'touring', 'cross', 'country',
+]);
+
+export function buildQueries(v: VehicleKey): string[] {
+  const base = `${v.make} ${v.model}`.replace(/\s+/g, ' ').trim();
+  // Search the generation first. If Commons uses a different name for it, the
+  // first model year is a useful second route; the broad query is only a final
+  // fallback and still has to pass the strict generation check below.
+  return [...new Set([
+    `${base} ${v.generation} ${v.bodyStyle}`.replace(/\s+/g, ' ').trim(),
+    `${base} ${v.years[0]}`,
+    base,
+  ])];
 }
 
 export function extractYear(title: string): number | null {
   const m = title.match(/\b(19[89]\d|20[0-4]\d)\b/);
   return m ? Number(m[1]) : null;
+}
+
+const GENERATION_STOP_WORDS = new Set([
+  'and', 'or', 'gen', 'generation', 'series', 'federal', 'facelift', 'pre',
+]);
+
+const ORDINAL_SIGNAL: Record<string, string> = {
+  first: '1st', second: '2nd', third: '3rd', fourth: '4th', fifth: '5th',
+};
+
+/** Tokens that can prove a title names this generation when no year is given. */
+export function generationSignals(generation: string): string[] {
+  const words = generation.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/);
+  const signals = words.flatMap((word) => {
+    if (!word || GENERATION_STOP_WORDS.has(word)) return [];
+    const ordinal = ORDINAL_SIGNAL[word];
+    return ordinal ? [word, ordinal] : word.length >= 2 ? [word] : [];
+  });
+  return [...new Set(signals)];
 }
 
 /** Strip the HTML Commons returns in the Artist field. */
@@ -109,9 +146,11 @@ export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { 
   if (!info) return { rejected: 'no imageinfo' };
 
   const title = page.title.replace(/^File:/, '').toLowerCase();
+  const titleWords = ` ${title.replace(/[^a-z0-9]+/g, ' ').trim()} `;
+  const hasPhrase = (phrase: string) => titleWords.includes(` ${phrase.trim().replace(/\s+/g, ' ')} `);
 
   if (!ALLOWED_EXT.some((e) => title.endsWith(e))) return { rejected: 'unsupported format' };
-  for (const bad of REJECT_TITLE) if (title.includes(bad)) return { rejected: `title contains "${bad.trim()}"` };
+  for (const bad of REJECT_TITLE) if (hasPhrase(bad)) return { rejected: `title contains "${bad.trim()}"` };
 
   const licence = classifyLicence(info.extmetadata);
   if (!licence) return { rejected: 'licence not recognised as free' };
@@ -121,31 +160,57 @@ export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { 
   if (aspect < 1.15) return { rejected: 'not landscape enough' };
 
   // The make and the model must both appear, or it is a different car.
+  const exactTitleTokens = new Set(titleWords.trim().split(/\s+/));
   const makeTokens = v.make.toLowerCase().split(/[\s-]+/).filter((t) => t.length > 2);
-  const modelTokens = v.model.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter((t) => t.length > 1);
-  const hasMake = makeTokens.length === 0 || makeTokens.some((t) => title.includes(t));
-  const hasModel = modelTokens.some((t) => title.includes(t));
+  const modelPhrase = v.model.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const modelTokens = modelPhrase.split(/\s+/).filter(Boolean);
+  const distinctiveModelTokens = modelTokens
+    .filter((token) => token.length > 1 && !GENERIC_MODEL_TOKENS.has(token));
+  const hasMake = makeTokens.length === 0 || makeTokens.some((token) => exactTitleTokens.has(token));
+  const hasModel = distinctiveModelTokens.length > 0
+    ? distinctiveModelTokens.some((token) => exactTitleTokens.has(token))
+    : hasPhrase(modelPhrase);
   if (!hasMake) return { rejected: 'make not in title' };
   if (!hasModel) return { rejected: 'model not in title' };
+
+  const identityWords = ` ${`${v.make} ${v.model} ${v.generation}`
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()} `;
+  for (const trim of EXCLUSIVE_TRIMS) {
+    const recordHasTrim = identityWords.includes(` ${trim} `);
+    const titleHasTrim = hasPhrase(trim);
+    if (titleHasTrim && !recordHasTrim) {
+      return { rejected: `different trim (${trim})` };
+    }
+    if (recordHasTrim && !titleHasTrim) return { rejected: `trim not verified (${trim})` };
+  }
 
   let score = 0;
 
   // Generation is the thing most likely to go wrong. A year inside the
-  // generation is a strong signal; one outside it disqualifies the file.
+  // generation is a strong signal; one outside it disqualifies the file. A
+  // title with no year must name the generation explicitly. Guessing is worse
+  // than leaving the designed typographic fallback in place.
   const year = extractYear(page.title);
+  const titleTokens = new Set(title.replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/));
+  const genMatch = generationSignals(v.generation).some((signal) => titleTokens.has(signal));
   if (year !== null) {
     if (year < v.years[0] || year > v.years[1]) {
       return { rejected: `year ${year} outside ${v.years[0]}-${v.years[1]}` };
     }
     score += 30;
+  } else if (!genMatch) {
+    return { rejected: 'generation not verifiable from title' };
   }
 
-  const gen = v.generation.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (gen.length >= 2 && title.replace(/[^a-z0-9]/g, '').includes(gen)) score += 18;
+  // A generation token is decisive when it is the only proof. When a valid
+  // year already proves the generation, keep this as a small tie-breaker so a
+  // mediocre coded shot does not outrank a strong front three-quarter view.
+  if (genMatch) score += year === null ? 18 : 4;
 
   PREFER_TITLE.forEach((word, i) => {
-    if (title.includes(word)) score += 12 - i;
+    if (hasPhrase(word)) score += 24 - i * 2;
   });
+  if (REAR_TITLE.some(hasPhrase)) score -= 20;
 
   // Prefer a natural landscape crop and a large original.
   score += aspect >= 1.3 && aspect <= 1.85 ? 12 : 4;
