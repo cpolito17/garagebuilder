@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   initialGarage, allocate, setSlotBudget, pinSlot, unpinSlot,
-  setBudget, setSlotCount, setSlotOdometer, steppedBudget,
-  MIN_SLOT, MAX_ODOMETER, DEFAULT_ODOMETER,
+  setBudget, setSlotCount, setSlotCondition, steppedBudget,
+  MIN_SLOT, DEFAULT_CONDITION,
 } from './garage';
 
 const sum = (ns: number[]) => ns.reduce((a, b) => a + b, 0);
@@ -211,15 +211,21 @@ describe('the budget stepper', () => {
   });
 });
 
-describe('the odometer', () => {
-  it('stays inside the dial range whatever it is handed', () => {
+describe('the condition band', () => {
+  it('sets one slot and leaves the others on the default', () => {
     let g = initialGarage(50_000, 3);
     const id = g.slots[0]!.id;
-    expect(setSlotOdometer(g, id, -5_000).slots[0]!.odometer).toBe(0);
-    expect(setSlotOdometer(g, id, 9_000_000).slots[0]!.odometer).toBe(MAX_ODOMETER);
-    g = setSlotOdometer(g, id, 137_500);
-    expect(g.slots[0]!.odometer).toBe(137_500);
-    // One slot's odometer is its own; the others keep the default.
-    expect(g.slots[1]!.odometer).toBe(DEFAULT_ODOMETER);
+    g = setSlotCondition(g, id, 'beater');
+    expect(g.slots[0]!.condition).toBe('beater');
+    // One slot's condition is its own; the others keep the default.
+    expect(g.slots[1]!.condition).toBe(DEFAULT_CONDITION);
+  });
+
+  it('refuses a band it cannot price', () => {
+    const g = initialGarage(50_000, 2);
+    // @ts-expect-error deliberately outside the union: a hostile link or a
+    // build that once knew a band this one does not.
+    expect(setSlotCondition(g, g.slots[0]!.id, 'showroom-queen').slots[0]!.condition)
+      .toBe(DEFAULT_CONDITION);
   });
 });

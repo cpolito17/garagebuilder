@@ -1,10 +1,10 @@
 import { ROLE_ORDER } from '../data/codec';
 import type { Role } from '../data/types';
 import { DEFAULT_FILTERS, type Filters } from './matching';
+import { distributeExact, makeSlot, MIN_SLOT, type GarageState, type SlotState } from '../state/garage';
 import {
-  DEFAULT_ODOMETER, MAX_ODOMETER, distributeExact, makeSlot, MIN_SLOT,
-  type GarageState, type SlotState,
-} from '../state/garage';
+  CONDITION_ORDER, DEFAULT_CONDITION, conditionById, conditionForMiles, type ConditionId,
+} from './condition';
 import { ROLE_WEIGHT } from '../data/types';
 
 /**
@@ -31,7 +31,13 @@ type WireSlot = {
   r?: number;        // role index into ROLE_ORDER, absent means any
   t: number;         // dollar target
   p?: string;        // pinned vehicle id
-  m?: number;        // odometer, absent means the default
+  c?: number;        // condition index into CONDITION_ORDER, absent means the default
+  /**
+   * Raw odometer, written by builds that predate condition bands. Read, never
+   * written: those links are snapped to the nearest band so the tag a
+   * recipient sees and the price they see come from the same number.
+   */
+  m?: number;
   f?: Partial<Record<keyof Filters, unknown>>; // only non-default filters
 };
 
@@ -78,7 +84,8 @@ export function encodeGarage(state: GarageState, title?: string): string {
       const roleIdx = slot.role ? ROLE_ORDER.indexOf(slot.role) : -1;
       if (roleIdx >= 0) w.r = roleIdx;
       if (slot.pinned && slot.pick) w.p = slot.pick;
-      if (slot.odometer !== DEFAULT_ODOMETER) w.m = slot.odometer;
+      const condition = conditionById(slot.condition).id;
+      if (condition !== DEFAULT_CONDITION) w.c = CONDITION_ORDER.indexOf(condition);
       const f = diffFilters(slot.filters);
       if (f) w.f = f;
       return w;
@@ -140,13 +147,25 @@ export function decodeGarage(raw: string | null | undefined): GarageState | null
       target: clampNumber(w?.t, 0, 2_000_000, MIN_SLOT),
       pinned: typeof w?.p === 'string' && w.p.length > 0,
       pick: typeof w?.p === 'string' && w.p.length > 0 ? w.p : null,
-      odometer: clampNumber(w?.m, 0, MAX_ODOMETER, DEFAULT_ODOMETER),
+      condition: decodeCondition(w),
       filters,
     };
   });
 
   if (slots.length === 0) return null;
   return { budget, slots };
+}
+
+/**
+ * A band index if the link has one, the nearest band to a legacy odometer if
+ * it has that instead, the default if it has neither or the value is nonsense.
+ */
+function decodeCondition(w: WireSlot | undefined): ConditionId {
+  if (typeof w?.c === 'number' && Number.isInteger(w.c) && w.c >= 0 && w.c < CONDITION_ORDER.length) {
+    return CONDITION_ORDER[w.c]!;
+  }
+  if (typeof w?.m === 'number' && Number.isFinite(w.m)) return conditionForMiles(w.m).id;
+  return DEFAULT_CONDITION;
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -179,10 +198,14 @@ export function shareUrlFor(state: GarageState, origin = window.location.origin 
 }
 
 /**
- * A challenge inherits the budget and the slot roles but none of the picks.
- * That fairness is why the loop works: an open-ended "build a garage" is a
- * blank page, while "you have this money and these jobs to cover, do better"
- * is a game with a move to make.
+ * A challenge inherits the budget, the slot roles and the condition bands, but
+ * none of the picks. That fairness is why the loop works: an open-ended "build
+ * a garage" is a blank page, while "you have this money and these jobs to
+ * cover, do better" is a game with a move to make.
+ *
+ * Condition comes along because it is part of the constraint rather than part
+ * of the answer. Beating a garage of Factory New cars with a row of beaters
+ * would not be beating it.
  */
 export function challengeFrom(state: GarageState): GarageState {
   const shares = distributeExact(
@@ -192,6 +215,6 @@ export function challengeFrom(state: GarageState): GarageState {
   );
   return {
     budget: state.budget,
-    slots: state.slots.map((slot, index) => makeSlot(slot.role, shares[index]!)),
+    slots: state.slots.map((slot, index) => makeSlot(slot.role, shares[index]!, slot.condition)),
   };
 }

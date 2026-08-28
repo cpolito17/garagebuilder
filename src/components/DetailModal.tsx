@@ -8,6 +8,8 @@ import { galleryFor, creditLine, requiresAttribution, LICENCE_URL } from '../dat
 import { formatUsd, formatMiles } from '../lib/pricing';
 import { PriceCurveChart } from './PriceCurveChart';
 import { VehiclePhoto } from './VehiclePhoto';
+import { ConditionTag } from './ConditionTag';
+import { milesFor, type ConditionId } from '../lib/condition';
 import { Chip } from './primitives';
 import { listingSearchUrl } from '../lib/listings';
 
@@ -25,11 +27,11 @@ const SEVERITY_LABEL: Record<string, string> = {
  * relationship between the card and its detail.
  */
 export function DetailModal({
-  match, slotBudget, slotOdometer, origin, starred, onStar, onClose,
+  match, slotBudget, slotCondition, origin, starred, onStar, onClose,
 }: {
   match: Match | null;
   slotBudget: number;
-  slotOdometer: number;
+  slotCondition: ConditionId;
   origin: DOMRect | null;
   starred: boolean;
   onStar: () => void;
@@ -200,8 +202,11 @@ export function DetailModal({
                     <span className="num t-h1 text-[--text-primary]">
                       {formatUsd(match.spend)}
                     </span>
-                    <span className="num t-body text-[--text-secondary]">
-                      {match.atMiles < 1000 ? 'New, 0 miles' : `at about ${formatMiles(match.atMiles)}`}
+                    <span className="flex flex-wrap items-center gap-2">
+                      <ConditionTag condition={slotCondition} showRange />
+                      <span className="num t-body text-[--text-secondary]">
+                        {match.atMiles < 1000 ? 'New, 0 miles' : `at about ${formatMiles(match.atMiles)}`}
+                      </span>
                     </span>
                   </div>
                   <PriceCurveChart
@@ -210,7 +215,7 @@ export function DetailModal({
                     budget={slotBudget}
                     selectedPrice={match.spend}
                     atMiles={match.atMiles}
-                    odometer={slotOdometer}
+                    odometer={milesFor(slotCondition)}
                   />
                 </section>
 
@@ -278,7 +283,7 @@ export function DetailModal({
                                 {i.onsetMiles > 0 ? `From ${formatMiles(i.onsetMiles)}` : 'At any mileage'}
                                 {i.typicalCostUsd > 0 ? `, about ${formatUsd(i.typicalCostUsd)}` : ''}
                                 {' · '}{SEVERITY_LABEL[i.severity]}
-                                {reached ? ' · reached at this odometer' : ''}
+                                {reached ? ' · reached in this condition' : ''}
                               </span>
                             </div>
                           </li>

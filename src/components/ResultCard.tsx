@@ -4,7 +4,9 @@ import { Star, Warning, Engine, Users, Package, SteeringWheel, Snowflake, Lightn
 import type { Match } from '../lib/matching';
 import type { Role } from '../data/types';
 import { formatMiles, formatUsd } from '../lib/pricing';
+import type { ConditionId } from '../lib/condition';
 import { Chip } from './primitives';
+import { ConditionTag } from './ConditionTag';
 import { VehicleTile } from './VehicleTile';
 import { VehiclePhoto } from './VehiclePhoto';
 import { heroFor } from '../data/images';
@@ -40,9 +42,9 @@ function chipsForRole(m: Match, role: Role | null) {
 }
 
 export const ResultCard = memo(function ResultCard({
-  match, role, starred, onStar, onOpen, index,
+  match, role, condition, starred, onStar, onOpen, index,
 }: {
-  match: Match; role: Role | null; starred: boolean;
+  match: Match; role: Role | null; condition: ConditionId; starred: boolean;
   onStar: () => void; onOpen: (origin: DOMRect) => void; index: number;
 }) {
   const reduce = useReducedMotion();
@@ -84,12 +86,17 @@ export const ResultCard = memo(function ResultCard({
             detail overlay beneath. Interactive children opt back in. */}
         <div className="pointer-events-none relative z-10 flex flex-col gap-2.5 p-3">
           <div className="pointer-events-none flex items-start justify-between gap-2">
-            <div className="min-w-0">
+            <div className="flex min-w-0 flex-col gap-1">
               <div className="num t-h2 text-[--text-primary]">
                 {formatUsd(spend)}
               </div>
-              <div className="num t-small text-[--text-secondary]">
-                {atMiles < 1000 ? 'New, 0 miles' : `at about ${formatMiles(atMiles)}`}
+              {/* The band is the slot's; the mileage is this car's, because a
+                  2023 hatchback cannot be a beater however the slot is set. */}
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                <ConditionTag condition={condition} />
+                <span className="num t-small text-[--text-secondary]">
+                  {atMiles < 1000 ? 'New, 0 miles' : `at about ${formatMiles(atMiles)}`}
+                </span>
               </div>
             </div>
 

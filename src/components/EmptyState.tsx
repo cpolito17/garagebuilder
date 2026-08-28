@@ -1,4 +1,5 @@
 import { Info } from '@phosphor-icons/react';
+import type { ConditionId } from '../lib/condition';
 
 /**
  * Names the constraint that eliminated the last candidate, and where possible
@@ -8,8 +9,8 @@ export function EmptyState({
   message, action, onAction,
 }: {
   message: string;
-  action?: { label: string; value: number } | undefined;
-  onAction?: (value: number) => void;
+  action?: { label: string; value: ConditionId } | undefined;
+  onAction?: (value: ConditionId) => void;
 }) {
   return (
     <div

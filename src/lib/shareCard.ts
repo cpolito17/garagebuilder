@@ -3,6 +3,7 @@ import { ROLE_LABEL } from '../data/types';
 import type { GarageState } from '../state/garage';
 import { summarise } from './garageSummary';
 import { formatUsd } from './pricing';
+import { conditionById, conditionSpan, type ConditionId } from './condition';
 
 /**
  * The share card. docs/DESIGN.md section 8.
@@ -33,6 +34,16 @@ const IN = {
   tertiary: '#7c7c85',
   accent: '#3fbf7f',
   over: '#f97066',
+};
+
+/**
+ * The band palette, as literals. The card is one fixed dark design whatever
+ * the sender's theme, and canvas cannot read a CSS custom property, so these
+ * are the dark-theme values of the --cond-* tokens, kept in step by hand.
+ */
+const COND_INK: Record<ConditionId, string> = {
+  new: '#8ab4ff', minimal: '#4fc9dd', tested: '#a7b1c2',
+  worn: '#c4a2ff', high: '#ff9264', beater: '#fb7185',
 };
 
 const SANS = '"Geist Variable", ui-sans-serif, system-ui, sans-serif';
@@ -158,6 +169,13 @@ function drawStory(ctx: CanvasRenderingContext2D, input: CardInput, w: number, h
       ctx.font = `700 44px ${MONO}`;
       ctx.fillStyle = IN.text;
       ctx.fillText(formatUsd(slot.target), pad + inner - 34, midY - 18);
+
+      // The condition the price was quoted at, directly under it. A price on a
+      // shared card is read by someone who never saw the control that set it.
+      const band = conditionById(slot.condition);
+      ctx.font = `600 26px ${MONO}`;
+      ctx.fillStyle = COND_INK[band.id];
+      ctx.fillText(band.label, pad + inner - 34, midY + 36);
       ctx.textAlign = 'left';
     } else {
       ctx.font = `400 40px ${SANS}`;
@@ -234,6 +252,10 @@ function drawLink(ctx: CanvasRenderingContext2D, input: CardInput, w: number, h:
     pad, pad + 182,
   );
 
+  ctx.font = `400 24px ${MONO}`;
+  ctx.fillStyle = IN.tertiary;
+  ctx.fillText(`Priced ${conditionSpan(state.slots.map((slot) => slot.condition))}`, pad, pad + 226);
+
   panel(ctx, pad, h - 128, 520, 72, 36, IN.accent);
   ctx.textAlign = 'center';
   ctx.font = `600 32px ${SANS}`;
@@ -271,6 +293,11 @@ function drawLink(ctx: CanvasRenderingContext2D, input: CardInput, w: number, h:
     ctx.font = `700 28px ${MONO}`;
     ctx.fillStyle = IN.secondary;
     ctx.fillText(formatUsd(slot.target), colX + colW - 20, mid - 4);
+
+    const band = conditionById(slot.condition);
+    ctx.font = `600 17px ${MONO}`;
+    ctx.fillStyle = COND_INK[band.id];
+    ctx.fillText(band.label, colX + colW - 20, mid + 28);
     ctx.textAlign = 'left';
   });
 }

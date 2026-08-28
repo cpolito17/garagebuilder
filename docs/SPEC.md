@@ -182,22 +182,46 @@ leaving a silent gap. A $25,000 three car garage with sports, commuter and
 family slots needs $31,750 to give all three something, and the header states
 that plainly.
 
-### 4.3 The odometer
+### 4.3 Condition
 
-One control per slot: an **odometer**, from 0 to 300,000 in 5,000 mile steps,
-default 100,000. It sets the mileage for the whole list, and every result is
-priced at it.
+One control per slot: a **condition**, chosen from six named bands, default
+Well Worn. It sets the mileage for the whole list, and every result is priced
+at it.
 
-This is the inversion of the original design, which used the same slider as a
-ceiling on the odometer each car's budget implied. That version was a filter
-wearing a dial's clothes: dragging it made cars appear and disappear, and the
-prices never moved. As an odometer the control does what its shape promises.
-Winding it up does not filter the list, it re-prices it, and cars that were out
-of reach walk into the budget:
+| Band | Reads as | Priced at | Colour |
+| --- | --- | --- | --- |
+| Factory New | 0 mi | 0 | blue |
+| Minimal Wear | under 30k mi | 30,000 | teal |
+| Road-Tested | under 60k mi | 60,000 | steel |
+| Well Worn | under 100k mi | 100,000 | violet |
+| High Mileage | under 200k mi | 200,000 | orange |
+| Beater | over 200k mi | 250,000 | rose |
 
-> **A $19,400 sports slot.** At 20,000 miles: Honda Prelude, BMW 335i, NC
-> Miata. At 100,000: Mustang GT, Mercury Marauder, Impreza WRX. At 200,000:
-> MR2 Turbo, WRX STI, Jaguar F-Type S.
+Each band prices at its ceiling, which is the most car the money buys inside
+the band and keeps the label honest: "under 60k" priced at 60,000 can only be a
+pleasant surprise in the real world, never a disappointment.
+
+Bands replaced a continuous 0 to 300,000 dial. The dial asked the user to hold
+an opinion about 137,500 miles, which nobody has; what people do have an
+opinion about is whether they want a nearly-new car or something they can wear
+out without grieving. The bands ask that question directly and carry the
+mileage the price model needs as a consequence rather than as the question.
+
+Each band has its own colour, used on the picker, on every result card, in the
+detail view, on the share card and in the challenge a recipient sees. The ramp
+is deliberately separate from the status palette: a beater is a strategy, not a
+warning, so it borrows neither caution amber nor over-budget red.
+
+This is the inversion of the original design, which used a slider as a ceiling
+on the odometer each car's budget implied. That version was a filter wearing a
+dial's clothes: dragging it made cars appear and disappear, and the prices
+never moved. Condition does what its name promises. Choosing a worse one does
+not filter the list, it re-prices it, and cars that were out of reach walk into
+the budget:
+
+> **A $19,400 sports slot.** At Minimal Wear: Honda Prelude, BMW 335i, NC
+> Miata. At Well Worn: Mustang GT, Mercury Marauder, Impreza WRX. At High
+> Mileage: MR2 Turbo, WRX STI, Jaguar F-Type S.
 
 No single odometer is plausible for every car in a list, so each vehicle is
 priced at the closest odometer its own generation could be showing: a two year
@@ -205,10 +229,15 @@ old hatchback is not sitting at 180,000 and a thirty year old roadster is not
 sitting at 5,000 (`DATA-MODEL.md` section 3.2). Every result card states the
 odometer it was actually priced at, which is how a clamped car explains itself.
 
-The dial's range ends at 300,000 because that is the hard cap in
-`plausibleMaxMiles`. If it stopped short, "no odometer brings this car into
-budget" would be a statement about the control rather than about the car, and
-the empty state would refuse offers it could have honoured.
+The bands stop at 250,000 rather than the 300,000 hard cap in
+`plausibleMaxMiles`, because a band is a description of a car someone would
+actually buy and nobody shops for "a 300,000 mile example" as a category. The
+empty state only ever offers a band the picker has, so an offer is always one
+the control can honour.
+
+Because a slot now holds a band rather than a number, a shared link carries the
+band and the recipient sees the tag next to every price. A price without its
+condition is not an estimate, it is a claim.
 
 Because the price is now the car's price rather than the whole slot budget, a
 slot routinely spends less than it holds. That is a real result and the garage
