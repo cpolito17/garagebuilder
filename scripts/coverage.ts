@@ -1,7 +1,10 @@
 import { CATALOG } from '../src/data/catalog';
 import { ROLES } from '../src/data/types';
 import { findMatches, DEFAULT_FILTERS } from '../src/lib/matching';
-import { DEFAULT_ODOMETER } from '../src/state/garage';
+import { DEFAULT_CONDITION } from '../src/state/garage';
+import { milesFor } from '../src/lib/condition';
+
+const DEFAULT_ODOMETER = milesFor(DEFAULT_CONDITION);
 
 console.log('ROLE COVERAGE  (tagged / matches at three budgets, 100k odometer)');
 for (const r of ROLES) {

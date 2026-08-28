@@ -5,9 +5,10 @@ import { CATALOG } from '../data/catalog';
 import { ROLES, ROLE_LABEL, type Role } from '../data/types';
 import { findMatches, explainEmpty, type Filters, type Match } from '../lib/matching';
 import { formatUsd } from '../lib/pricing';
+import { milesFor, type ConditionId } from '../lib/condition';
 import type { SlotState } from '../state/garage';
 import { AllocationSlider } from './AllocationSlider';
-import { OdometerDial } from './OdometerDial';
+import { ConditionPicker } from './ConditionPicker';
 import { ResultCard } from './ResultCard';
 import { EmptyState } from './EmptyState';
 import { FilterPanel } from './FilterPanel';
@@ -16,7 +17,7 @@ const RESULT_LIMIT = 12;
 
 export function SlotColumn({
   slot, index, budget, allocated, headroom, minSlot, over,
-  onBudgetChange, onBudgetCommit, onRole, onOdometer, onFilters, onStar, onUnstar, onOpenDetail,
+  onBudgetChange, onBudgetCommit, onRole, onCondition, onFilters, onStar, onUnstar, onOpenDetail,
 }: {
   slot: SlotState;
   index: number;
@@ -28,23 +29,27 @@ export function SlotColumn({
   onBudgetChange: (v: number) => void;
   onBudgetCommit: (v: number) => void;
   onRole: (r: Role | null) => void;
-  onOdometer: (v: number) => void;
+  onCondition: (v: ConditionId) => void;
   onFilters: (f: Filters) => void;
   onStar: (vehicleId: string, spend: number) => void;
   onUnstar: () => void;
   onOpenDetail: (match: Match, origin: DOMRect) => void;
 }) {
+  // The slot holds a condition; the price model works in miles. One
+  // conversion, here, keeps the rest of the column speaking in bands.
+  const odometer = milesFor(slot.condition);
+
   const list = useMemo(
     () => findMatches(CATALOG, {
-      budget: allocated, role: slot.role, odometer: slot.odometer, filters: slot.filters,
+      budget: allocated, role: slot.role, odometer, filters: slot.filters,
     }),
-    [allocated, slot.role, slot.odometer, slot.filters],
+    [allocated, slot.role, odometer, slot.filters],
   );
 
   const pick = slot.pick ? list.matches.find((m) => m.vehicle.id === slot.pick) : undefined;
   const shown = slot.pinned && pick ? [pick] : list.matches.slice(0, RESULT_LIMIT);
   const empty = explainEmpty(list, {
-    budget: allocated, role: slot.role, odometer: slot.odometer, filters: slot.filters,
+    budget: allocated, role: slot.role, odometer, filters: slot.filters,
   });
 
   return (
@@ -92,12 +97,12 @@ export function SlotColumn({
 
           {!slot.pinned && (
             <>
-              <OdometerDial value={slot.odometer} onChange={onOdometer} />
+              <ConditionPicker value={slot.condition} onChange={onCondition} />
               <FilterPanel
                 filters={slot.filters}
                 role={slot.role}
                 budget={allocated}
-                odometer={slot.odometer}
+                odometer={odometer}
                 onChange={onFilters}
               />
             </>
@@ -119,7 +124,7 @@ export function SlotColumn({
           <EmptyState
             message={empty.message}
             action={empty.action ? { label: empty.action.label, value: empty.action.value } : undefined}
-            onAction={onOdometer}
+            onAction={onCondition}
           />
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
@@ -128,6 +133,7 @@ export function SlotColumn({
                 key={m.vehicle.id}
                 match={m}
                 role={slot.role}
+                condition={slot.condition}
                 index={i}
                 starred={slot.pick === m.vehicle.id}
                 onStar={() => (slot.pick === m.vehicle.id ? onUnstar() : onStar(m.vehicle.id, m.spend))}

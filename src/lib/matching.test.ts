@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { CATALOG } from '../data/catalog';
 import { findMatches, explainEmpty, DEFAULT_FILTERS, cautionsFor } from './matching';
 import { plausibleMinMiles, plausibleMaxMiles, priceAtMiles, MAX_ODOMETER } from './pricing';
+import { CONDITION_ORDER, milesFor } from './condition';
 
 const q = (o: Partial<Parameters<typeof findMatches>[1]> = {}) => ({
   budget: 18000, role: null, odometer: 100_000, filters: DEFAULT_FILTERS, ...o,
@@ -123,21 +124,22 @@ describe('cautions', () => {
 });
 
 describe('empty states', () => {
-  it('offers a concrete odometer when winding the dial up would fill the list', () => {
+  it('offers a condition band when a worse one would fill the list', () => {
     const query = q({ budget: 8000, role: 'sports', odometer: 20_000 });
     const list = findMatches(CATALOG, query);
     expect(list.matches).toHaveLength(0);
     const e = explainEmpty(list, query);
-    expect(e.action?.kind).toBe('set-odometer');
-    expect(e.action!.value).toBeGreaterThan(20_000);
+    expect(e.action?.kind).toBe('set-condition');
+    expect(milesFor(e.action!.value)).toBeGreaterThan(20_000);
     // The offer has to be true: taking it must produce results.
-    const after = findMatches(CATALOG, { ...query, odometer: e.action!.value });
+    const after = findMatches(CATALOG, { ...query, odometer: milesFor(e.action!.value) });
     expect(after.matches.length).toBeGreaterThan(0);
   });
 
-  it('never offers an odometer the dial cannot reach', () => {
-    // Regression: a $4,424 sports slot at 0 miles offered 255,000, past the end
-    // of the control, so taking the offer silently landed somewhere else.
+  it('only ever offers a band the picker actually has', () => {
+    // Regression from the dial this replaced: a $4,424 sports slot at 0 miles
+    // offered 255,000, past the end of the control, so taking the offer
+    // silently landed somewhere else.
     for (const budget of [2_500, 4_424, 8_000, 14_000]) {
       for (const odometer of [0, 40_000, 120_000]) {
         const query = q({ budget, role: 'sports', odometer });
@@ -145,10 +147,10 @@ describe('empty states', () => {
         if (list.matches.length > 0) continue;
         const e = explainEmpty(list, query);
         if (!e.action) continue;
-        expect(e.action.value, `${budget} at ${odometer}`).toBeLessThanOrEqual(MAX_ODOMETER);
-        expect(e.action.value).toBeGreaterThan(odometer);
+        expect(CONDITION_ORDER, `${budget} at ${odometer}`).toContain(e.action.value);
+        expect(milesFor(e.action.value)).toBeGreaterThan(odometer);
         // Every offer has to be honoured by the thing it offers.
-        const after = findMatches(CATALOG, { ...query, odometer: e.action.value });
+        const after = findMatches(CATALOG, { ...query, odometer: milesFor(e.action.value) });
         expect(after.matches.length, `${budget} at ${odometer}`).toBeGreaterThan(0);
       }
     }
@@ -175,13 +177,13 @@ describe('empty states', () => {
     }
   });
 
-  it('says the odometer cannot help when no odometer can', () => {
+  it('says condition cannot help when no condition can', () => {
     const query = q({ budget: 1500, role: 'sports', odometer: 250_000 });
     const list = findMatches(CATALOG, query);
     expect(list.matches).toHaveLength(0);
     const e = explainEmpty(list, query);
     expect(e.action).toBeUndefined();
-    expect(e.message).toMatch(/at any odometer its age allows/);
+    expect(e.message).toMatch(/in any condition its age allows/);
   });
 
   it('names transmission and drivetrain when that pairing is the cause', () => {

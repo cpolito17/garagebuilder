@@ -4,9 +4,9 @@ A tool for deciding how to spend one car budget across several cars that each do
 a different job.
 
 Set a total budget. Choose how many slots you want and what each is for. Each
-slot has an odometer you set, and the tool shows what that money buys at that
-mileage. Lock one car per slot, then send it to someone as a challenge: same
-budget, same slots, beat it.
+slot has a condition you set, from Factory New to Beater, and the tool shows
+what that money buys in that condition. Lock one car per slot, then send it to
+someone as a challenge: same budget, same slots, same conditions, beat it.
 
 **Status:** Phases 1 to 4 built. The math, the catalog of 325 vehicle
 generations, the allocation mechanic, the detail view, the garage summary, the
@@ -65,16 +65,17 @@ Every vehicle in the catalog has a price curve against odometer:
 price(m) = floor + (base - floor) * (1 - decay) ^ ((m - baselineMiles) / 10000)
 ```
 
-Each slot has an **odometer** you set, and every car in that slot's list is
-priced at it. So the question is not "which cars cost under $19,400" but
-**"what does $19,400 buy at 200,000 miles instead of 20,000."** Winding the dial
-up does not filter the list, it re-prices it:
+Each slot has a **condition** you set — six bands from Factory New to Beater,
+each carrying the mileage it prices at — and every car in that slot's list is
+priced there. So the question is not "which cars cost under $19,400" but
+**"what does $19,400 buy as a beater instead of a nearly-new car."** Choosing a
+worse condition does not filter the list, it re-prices it:
 
 | Sports slot, $19,400 | The list |
 | --- | --- |
-| at 20,000 miles | Honda Prelude, BMW 335i, NC Miata |
-| at 100,000 miles | Mustang GT, Mercury Marauder, Impreza WRX |
-| at 200,000 miles | MR2 Turbo, WRX STI, Jaguar F-Type S |
+| Minimal Wear, under 30k mi | Honda Prelude, BMW 335i, NC Miata |
+| Well Worn, under 100k mi | Mustang GT, Mercury Marauder, Impreza WRX |
+| High Mileage, under 200k mi | MR2 Turbo, WRX STI, Jaguar F-Type S |
 
 Cars are clamped to the odometer their own generation could plausibly show, so
 a 2023 hatchback never appears at 190,000 miles and a 1994 roadster never

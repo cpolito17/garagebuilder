@@ -4,9 +4,10 @@ import { ROLE_LABEL, type Role } from './data/types';
 import { findMatches, type Filters, type Match } from './lib/matching';
 import { formatUsd } from './lib/pricing';
 import { autoAllocate } from './lib/autoAllocate';
+import { milesFor } from './lib/condition';
 import {
   allocate, initialGarage, pinSlot, setBudget, setSlotBudget, setSlotCount,
-  setSlotFilters, setSlotOdometer, setSlotRole, unpinSlot, MIN_SLOT, DEFAULT_ODOMETER,
+  setSlotFilters, setSlotCondition, setSlotRole, unpinSlot, MIN_SLOT, DEFAULT_CONDITION,
   type GarageState,
 } from './state/garage';
 import { BudgetBar } from './components/BudgetBar';
@@ -107,7 +108,7 @@ export default function App() {
         if (s.pinned) return false;
         const budget = alloc.perSlot.get(s.id) ?? 0;
         return findMatches(CATALOG, {
-          budget, role: s.role, odometer: s.odometer, filters: s.filters,
+          budget, role: s.role, odometer: milesFor(s.condition), filters: s.filters,
         }).matches.length === 0;
       }),
     [state.slots, alloc],
@@ -309,7 +310,7 @@ export default function App() {
       <DetailModal
         match={detail?.match ?? null}
         slotBudget={detail ? alloc.perSlot.get(detail.slotId) ?? 0 : 0}
-        slotOdometer={detailSlot?.odometer ?? DEFAULT_ODOMETER}
+        slotCondition={detailSlot?.condition ?? DEFAULT_CONDITION}
         origin={detail?.origin ?? null}
         starred={!!detailSlot && detailSlot.pick === detail?.match.vehicle.id}
         onStar={() => {
@@ -352,7 +353,7 @@ function SlotColumnFor({
       onBudgetChange={(v) => update((s) => setSlotBudget(s, slot.id, v))}
       onBudgetCommit={(v) => update((s) => setSlotBudget(s, slot.id, v))}
       onRole={(r: Role | null) => update((s) => setSlotRole(s, slot.id, r))}
-      onOdometer={(v) => update((s) => setSlotOdometer(s, slot.id, v))}
+      onCondition={(v) => update((s) => setSlotCondition(s, slot.id, v))}
       onFilters={(f: Filters) => update((s) => setSlotFilters(s, slot.id, f))}
       onStar={(vehicleId, spend) => update((s) => pinSlot(s, slot.id, vehicleId, spend))}
       onUnstar={() => update((s) => unpinSlot(s, slot.id))}

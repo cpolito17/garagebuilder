@@ -6,6 +6,7 @@ import { ROLE_LABEL } from '../data/types';
 import { findMatches } from '../lib/matching';
 import { estimatedPrice, formatMiles, formatUsd, milesAffordable, plausibleMinMiles } from '../lib/pricing';
 import { allocate, initialGarage, pinSlot, setSlotBudget, MIN_SLOT, type GarageState } from '../state/garage';
+import { DEFAULT_CONDITION, conditionSentence, milesFor } from '../lib/condition';
 import { AllocationSlider } from './AllocationSlider';
 import { Shell } from './primitives';
 
@@ -129,7 +130,7 @@ function LiveAllocation() {
   const rows = state.slots.map((slot) => {
     const budget = alloc.perSlot.get(slot.id) ?? 0;
     const top = findMatches(CATALOG, {
-      budget, role: slot.role, odometer: slot.odometer, filters: slot.filters,
+      budget, role: slot.role, odometer: milesFor(slot.condition), filters: slot.filters,
     }).matches[0];
     return { slot, budget, top };
   });
@@ -142,9 +143,9 @@ function LiveAllocation() {
           <span className="num t-h1 text-[--text-primary]">{formatUsd(state.budget)}</span>
         </div>
         <div className="flex items-baseline justify-between gap-4">
-          <span className="t-label text-[--text-tertiary]">Odometer</span>
+          <span className="t-label text-[--text-tertiary]">Condition</span>
           <span className="num t-small text-[--text-secondary]">
-            {formatMiles(state.slots[0]?.odometer ?? 0)}
+            {conditionSentence(state.slots[0]?.condition ?? DEFAULT_CONDITION)}
           </span>
         </div>
 
@@ -276,7 +277,7 @@ function ShareCardPreview() {
           for (const slot of state.slots) {
             const at = allocate(state).perSlot.get(slot.id) ?? 0;
             const best = findMatches(CATALOG, {
-              budget: at, role: slot.role, odometer: slot.odometer, filters: slot.filters,
+              budget: at, role: slot.role, odometer: milesFor(slot.condition), filters: slot.filters,
             }).matches[0];
             if (!best) continue;
             picks.push(best.vehicle);

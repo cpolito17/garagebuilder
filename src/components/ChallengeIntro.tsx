@@ -3,6 +3,7 @@ import { byId } from '../data/catalog';
 import { ROLE_LABEL } from '../data/types';
 import type { GarageState } from '../state/garage';
 import { formatUsd } from '../lib/pricing';
+import { ConditionTag } from './ConditionTag';
 
 /**
  * What a recipient of a shared link sees. docs/SPEC.md section 6.2.
@@ -44,7 +45,7 @@ export function ChallengeIntro({
                 key={slot.id}
                 className="flex items-center justify-between gap-3 rounded-[10px] border border-[--hairline] px-3 py-2.5"
               >
-                <div className="flex min-w-0 flex-col">
+                <div className="flex min-w-0 flex-col gap-1">
                   <span className="t-label text-[--text-tertiary]">
                     {slot.role ? ROLE_LABEL[slot.role] : `Slot ${i + 1}`}
                   </span>
@@ -52,6 +53,9 @@ export function ChallengeIntro({
                     {v ? `${v.make} ${v.model}` : slot.pick ? 'No longer in the catalog' : 'Empty'}
                     {v && <span className="num text-[--text-tertiary]"> {v.generation}</span>}
                   </span>
+                  {/* The band the rival's price was set at, and the one this
+                      challenge inherits. Without it the number is unanchored. */}
+                  <ConditionTag condition={slot.condition} className="self-start" />
                 </div>
                 <span className="num t-body shrink-0 text-[--text-secondary]">
                   {formatUsd(slot.target)}

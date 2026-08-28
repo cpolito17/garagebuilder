@@ -593,10 +593,16 @@ type SlotState = {
   share: number;               // 0..1 of remaining budget, fluid slots only
   pinned: boolean;
   pick: VehicleId | null;
-  odometer: number;
+  condition: ConditionId;      // index into CONDITION_ORDER on the wire
   filters: Partial<Filters>;   // only non-default values are serialized
 };
 ```
+
+Condition is encoded as an index into a fixed order, so bands may be renamed,
+recoloured or re-anchored but never reordered or removed. Links written before
+bands existed carry a raw `odometer` instead; those are read and snapped to the
+nearest band, so the tag a recipient sees and the price they see come from the
+same number.
 
 Encoded as `?g=<version>.<base64url(JSON)>`. Only non-default fields are
 serialized, which keeps a typical 4-slot garage under 300 characters.

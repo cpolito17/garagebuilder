@@ -32,6 +32,26 @@
   --over:         #b42318;
   --over-wash:    rgb(180 35 24 / 0.09);
 
+  /* Condition bands. docs/SPEC.md 4.3. A deliberately separate ramp from the
+     status colours: a beater is a strategy, not a warning, so the scale runs
+     cool to warm without borrowing caution amber or over-budget red. Well Worn
+     breaks the ramp on purpose — as gold it twinned the caution row directly
+     beneath it on a result card, and two meanings in one colour is worse than
+     one step out of sequence. */
+  --cond-new:     #1d4ed8;
+  --cond-minimal: #0e6f7d;
+  --cond-tested:  #565f6e;
+  --cond-worn:    #6d28d9;
+  --cond-high:    #b3400b;
+  --cond-beater:  #9f1239;
+
+  --cond-new-wash:     rgb(29 78 216 / 0.10);
+  --cond-minimal-wash: rgb(14 111 125 / 0.10);
+  --cond-tested-wash:  rgb(86 95 110 / 0.10);
+  --cond-worn-wash:    rgb(109 40 217 / 0.10);
+  --cond-high-wash:    rgb(179 64 11 / 0.10);
+  --cond-beater-wash:  rgb(159 18 57 / 0.10);
+
   --inset-hi: rgb(255 255 255 / 0.55);
 
   --shadow-card:  0 1px 2px rgb(24 24 27 / 0.04), 0 8px 24px rgb(24 24 27 / 0.06);
@@ -64,6 +84,20 @@
     --over:         #f97066;
     --over-wash:    rgb(249 112 102 / 0.15);
 
+    --cond-new:     #8ab4ff;
+    --cond-minimal: #4fc9dd;
+    --cond-tested:  #a7b1c2;
+    --cond-worn:    #c4a2ff;
+    --cond-high:    #ff9264;
+    --cond-beater:  #fb7185;
+
+    --cond-new-wash:     rgb(138 180 255 / 0.15);
+    --cond-minimal-wash: rgb(79 201 221 / 0.15);
+    --cond-tested-wash:  rgb(167 177 194 / 0.15);
+    --cond-worn-wash:    rgb(196 162 255 / 0.15);
+    --cond-high-wash:    rgb(255 146 100 / 0.15);
+    --cond-beater-wash:  rgb(251 113 133 / 0.15);
+
     --inset-hi: rgb(255 255 255 / 0.06);
 
     --shadow-card:  0 1px 2px rgb(0 0 0 / 0.30), 0 8px 24px rgb(0 0 0 / 0.36);
@@ -95,6 +129,20 @@
   --caution-wash: rgb(232 163 61 / 0.15);
   --over:         #f97066;
   --over-wash:    rgb(249 112 102 / 0.15);
+
+  --cond-new:     #8ab4ff;
+  --cond-minimal: #4fc9dd;
+  --cond-tested:  #a7b1c2;
+  --cond-worn:    #c4a2ff;
+  --cond-high:    #ff9264;
+  --cond-beater:  #fb7185;
+
+  --cond-new-wash:     rgb(138 180 255 / 0.15);
+  --cond-minimal-wash: rgb(79 201 221 / 0.15);
+  --cond-tested-wash:  rgb(167 177 194 / 0.15);
+  --cond-worn-wash:    rgb(196 162 255 / 0.15);
+  --cond-high-wash:    rgb(255 146 100 / 0.15);
+  --cond-beater-wash:  rgb(251 113 133 / 0.15);
 
   --inset-hi: rgb(255 255 255 / 0.06);
 

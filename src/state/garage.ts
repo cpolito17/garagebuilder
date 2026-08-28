@@ -1,8 +1,9 @@
 import { ROLE_WEIGHT, type Role } from '../data/types';
 import { DEFAULT_FILTERS, ROLE_PRESETS, type Filters } from '../lib/matching';
-import { MAX_ODOMETER } from '../lib/pricing';
+import { DEFAULT_CONDITION, conditionById, type ConditionId } from '../lib/condition';
 
-export { MAX_ODOMETER, ODOMETER_STEP } from '../lib/pricing';
+export { MAX_ODOMETER } from '../lib/pricing';
+export { DEFAULT_CONDITION } from '../lib/condition';
 
 /**
  * Garage state and the allocation model. docs/SPEC.md section 4.2.
@@ -34,12 +35,6 @@ export function steppedBudget(current: number, direction: 1 | -1): number {
   return Math.min(MAX_BUDGET, Math.max(MIN_SLOT, snapped));
 }
 export const MAX_SLOTS = 5;
-/**
- * The odometer every slot starts at. A hundred thousand miles is what most
- * people picture when they picture a used car, and it leaves the dial room to
- * wind in both directions.
- */
-export const DEFAULT_ODOMETER = 100_000;
 
 export type SlotState = {
   id: string;
@@ -47,8 +42,8 @@ export type SlotState = {
   target: number;          // dollars allocated to this slot
   pinned: boolean;         // a starred pick locks the slot to its price
   pick: string | null;     // vehicle id
-  /** One odometer for the whole slot. Every result is priced at it. */
-  odometer: number;
+  /** One condition band for the whole slot. Every result is priced at it. */
+  condition: ConditionId;
   filters: Filters;
 };
 
@@ -87,14 +82,18 @@ export function distributeExact(amount: number, weights: number[], floor: number
 let seq = 0;
 const nextId = () => `slot-${++seq}`;
 
-export function makeSlot(role: Role | null, target: number): SlotState {
+export function makeSlot(
+  role: Role | null,
+  target: number,
+  condition: ConditionId = DEFAULT_CONDITION,
+): SlotState {
   return {
     id: nextId(),
     role,
     target,
     pinned: false,
     pick: null,
-    odometer: DEFAULT_ODOMETER,
+    condition,
     filters: { ...DEFAULT_FILTERS, ...(role ? ROLE_PRESETS[role] ?? {} : {}) },
   };
 }
@@ -252,9 +251,11 @@ export function setSlotRole(state: GarageState, slotId: string, role: Role | nul
   };
 }
 
-export function setSlotOdometer(state: GarageState, slotId: string, odometer: number): GarageState {
-  const clamped = Math.min(MAX_ODOMETER, Math.max(0, Math.round(odometer)));
-  return { ...state, slots: state.slots.map((s) => (s.id === slotId ? { ...s, odometer: clamped } : s)) };
+export function setSlotCondition(state: GarageState, slotId: string, condition: ConditionId): GarageState {
+  // Through conditionById so an unknown id lands on the default rather than
+  // writing a band the rest of the app cannot price.
+  const valid = conditionById(condition).id;
+  return { ...state, slots: state.slots.map((s) => (s.id === slotId ? { ...s, condition: valid } : s)) };
 }
 
 export function setSlotFilters(state: GarageState, slotId: string, filters: Filters): GarageState {

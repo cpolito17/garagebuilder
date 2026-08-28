@@ -1,6 +1,7 @@
 import { decodeGarage } from '../src/lib/urlState';
 import { byId } from '../src/data/catalog';
 import { summarise } from '../src/lib/garageSummary';
+import { conditionSpan } from '../src/lib/condition';
 import type { Vehicle } from '../src/data/types';
 
 /**
@@ -37,6 +38,8 @@ export function previewFor(stateParam: string | null): Preview {
     .map((s) => (s.pick ? byId.get(s.pick) : undefined))
     .filter(Boolean) as Vehicle[];
 
+  const condition = conditionSpan(garage.slots.map((s) => s.condition));
+
   // A garage with nothing picked is someone's saved work, not a challenge.
   if (picks.length === 0) {
     return {
@@ -54,10 +57,13 @@ export function previewFor(stateParam: string | null): Preview {
   const title = `Beat my ${fmt(garage.budget)} garage`;
 
   const listed = names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
+  // The condition earns its place in a preview that is mostly prices: the
+  // same money is a different garage at Factory New than it is at Beater, and
+  // the recipient has no other way to know which one they are looking at.
   const description =
     `${listed}. ${fmt(spend)} spent, ` +
     `${s.combinedHorsepower.toLocaleString()} hp, ${s.manualCars} manual-equipped. ` +
-    `Same budget, same slots. Do better.`;
+    `Priced ${condition}. Same budget, same slots. Do better.`;
 
   return { title, description, specific: true };
 }

@@ -1,8 +1,8 @@
 import type { Issue, Role, Vehicle } from '../data/types';
 import {
-  estimatedPrice, milesAffordable, plausibleMaxMiles, plausibleOdometer,
-  MAX_ODOMETER, ODOMETER_STEP,
+  estimatedPrice, milesAffordable, plausibleMaxMiles, plausibleOdometer, MAX_ODOMETER,
 } from './pricing';
+import { conditionAtLeast, conditionForMiles, type ConditionId } from './condition';
 
 /** Hard filters exposed per slot. All optional, all AND-ed. */
 export type Filters = {
@@ -232,31 +232,34 @@ export function findMatches(catalog: Vehicle[], q: SlotQuery): MatchList {
  */
 export function explainEmpty(list: MatchList, q: SlotQuery): {
   message: string;
-  action?: { label: string; kind: 'set-odometer'; value: number };
+  action?: { label: string; kind: 'set-condition'; value: ConditionId };
 } {
-  // The offer is the smallest wind of the dial that brings something in, and
-  // the message names that same vehicle: an offer about one car and a sentence
-  // about another reads as two unrelated facts. Never past the dial's own end,
-  // because an offer the control cannot honour is worse than no offer.
+  // The offer is the cheapest band that brings something in, and the message
+  // names that same vehicle: an offer about one car and a sentence about
+  // another reads as two unrelated facts. A band the picker does not have is
+  // worse than no offer, so anything past a beater offers nothing.
+  const here = conditionForMiles(q.odometer);
   const reachable = list.overBudget
     .filter((o) => o.reachableAt !== null && o.reachableAt > q.odometer && o.reachableAt <= MAX_ODOMETER)
     .sort((a, b) => a.reachableAt! - b.reachableAt!);
 
   if (reachable.length > 0) {
     const nearest = reachable[0]!;
-    const needed = Math.min(MAX_ODOMETER, Math.ceil(nearest.reachableAt! / ODOMETER_STEP) * ODOMETER_STEP);
-    const n = list.overBudget.length;
-    return {
-      message: `${n} ${n === 1 ? 'vehicle fits' : 'vehicles fit'} these filters but ${n === 1 ? 'costs' : 'cost'} more than ${fmt(q.budget)} at ${fmt0(q.odometer)} miles. The nearest is the ${nearest.vehicle.make} ${nearest.vehicle.model}, ${fmt(nearest.price)} here, and inside the budget at ${fmt0(needed)} miles.`,
-      action: { label: `Set the odometer to ${needed.toLocaleString()}`, kind: 'set-odometer', value: needed },
-    };
+    const band = conditionAtLeast(nearest.reachableAt!);
+    if (band) {
+      const n = list.overBudget.length;
+      return {
+        message: `${n} ${n === 1 ? 'vehicle fits' : 'vehicles fit'} these filters but ${n === 1 ? 'costs' : 'cost'} more than ${fmt(q.budget)} at ${here.label}. The nearest is the ${nearest.vehicle.make} ${nearest.vehicle.model}, ${fmt(nearest.price)} here, and inside the budget at ${band.label}.`,
+        action: { label: `Switch to ${band.label}`, kind: 'set-condition', value: band.id },
+      };
+    }
   }
 
   if (list.overBudget.length > 0) {
     const nearest = list.overBudget[0]!;
     const need = Math.max(500, Math.ceil((nearest.price - q.budget) / 500) * 500);
     return {
-      message: `Nothing here costs ${fmt(q.budget)} or less at any odometer its age allows. The closest is the ${nearest.vehicle.make} ${nearest.vehicle.model}, which needs about ${fmt(need)} more.`,
+      message: `Nothing here costs ${fmt(q.budget)} or less in any condition its age allows. The closest is the ${nearest.vehicle.make} ${nearest.vehicle.model}, which needs about ${fmt(need)} more.`,
     };
   }
 
@@ -268,8 +271,4 @@ export function explainEmpty(list: MatchList, q: SlotQuery): {
 
 function fmt(n: number) {
   return `$${Math.round(n).toLocaleString('en-US')}`;
-}
-
-function fmt0(n: number) {
-  return Math.round(n).toLocaleString('en-US');
 }
