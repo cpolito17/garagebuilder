@@ -73,8 +73,11 @@ export const ResultCard = memo(function ResultCard({
         />
 
         <div className="pointer-events-none relative z-10">
-          <VehiclePhoto image={hero} priority={index < 2} />
           <VehicleTile vehicle={v} withPhoto={!!hero} />
+          {/* The photograph sits under the identity band: the name reads first,
+              the car confirms it, and the price follows underneath. Squared off,
+              because in the middle of the card there are no corners to inherit. */}
+          <VehiclePhoto image={hero} priority={index < 2} rounded={false} />
         </div>
 
         {/* pointer-events-none so the card's dead space falls through to the
