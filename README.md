@@ -20,7 +20,7 @@ vehicle renders its typographic identity band, which is a designed state.
 ```bash
 npm install
 npm run dev          # development server
-npm test             # 174 tests
+npm test             # 176 tests
 npm run build        # validates the catalog, typechecks, builds
 npm run preview      # then, against the running preview:
                      #   node scripts/audit.mjs   accessibility audit, both themes
@@ -50,6 +50,7 @@ and a record that fails schema validation fails the build.
 | [`docs/DATA-MODEL.md`](docs/DATA-MODEL.md) | Catalog schema, the price model and its inversion, sourcing, licensing, authoring plan. |
 | [`docs/CATALOG_EXPANSION_TUTORIAL.md`](docs/CATALOG_EXPANSION_TUTORIAL.md) | Agent procedure for researching and adding balanced vehicle batches, with extra high-price coverage. |
 | [`docs/PHOTO_COLLECTION.md`](docs/PHOTO_COLLECTION.md) | Reviewed photo collection, exclusion, restoration and deployment procedure. |
+| [`docs/DOMAIN.md`](docs/DOMAIN.md) | Namecheap to Cloudflare delegation, every DNS record, Worker custom domains, verification. |
 
 Read `SPEC.md` first. `DATA-MODEL.md` section 3 is the part everything else
 depends on.
@@ -106,6 +107,7 @@ discount. That per-car tuning is the catalog's whole value.
 | Validation | Zod | Catalog records validate at build time. A bad record fails the build. |
 | State | URL, base64url-encoded compact JSON | No backend, no accounts. The link is the save file and the distribution model. |
 | Hosting | Cloudflare Workers static assets | Static, plus one Worker for link previews. |
+| Domain | `garagechallenge.lol`, Cloudflare DNS | Registered at Namecheap, nameservers delegated to Cloudflare. |
 
 Everything the user builds lives in `?g=`. There is nothing to log into and
 nothing to lose.
@@ -140,6 +142,22 @@ npm run worker:deploy   # npm run build && wrangler deploy
 
 The app is unaffected if the Worker is not deployed: `dist/` is a complete
 static site on its own. See `SPEC.md` section 6.4.
+
+---
+
+## Domain
+
+The site is `https://garagechallenge.lol`. Both it and `www.garagechallenge.lol`
+are attached to the Worker as Cloudflare Custom Domains, declared in
+`wrangler.jsonc`, so Cloudflare writes and owns the two DNS records that serve
+the site: nothing here hand-authors an A record, and there is no origin IP to
+keep in sync. The Worker 301s `www` to the apex so a shared garage has exactly
+one address, and the `workers.dev` URL is disabled for the same reason.
+
+Registrar is Namecheap, and the only thing it does is delegate to Cloudflare's
+nameservers. The hand-written records are the four that lock down email on a
+domain that sends none. Full record tables, procedure and verification in
+[`docs/DOMAIN.md`](docs/DOMAIN.md).
 
 ---
 
