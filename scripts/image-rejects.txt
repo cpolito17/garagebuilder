@@ -1,0 +1,32 @@
+# Photographs to replace.
+#
+# Paste one per line, then run:
+#
+#     npm run images:reject              replace them
+#     npm run images:reject -- --dry-run show what would happen, change nothing
+#
+# Each line is matched against the manifest and turned into a permanent entry
+# in scripts/image-exclusions.json, so a photograph rejected here is never
+# picked again on any clone. The vehicle is then re-fetched from Wikimedia
+# Commons, which chooses different photographs from what is left.
+#
+# Any of these forms works, so paste whatever you have in front of you:
+#
+#     bmw-m3-e46-0.jpg                  a local filename from public/vehicles
+#     bmw-m3-e46-0@2x.jpg               the retina twin means the same photo
+#     public/vehicles/bmw-m3-e46-1.jpg  a path, slashes either way
+#     File:Some_BMW_Photo.jpg           a Commons file title
+#     https://commons.wikimedia.org/wiki/File:Some_BMW_Photo.jpg
+#     bmw-m3-e46                        a bare vehicle id rejects its whole set
+#
+# Text after a # is a note, so you can say why. Blank lines are ignored.
+# A line that matches nothing is reported rather than skipped silently, so a
+# typo cannot quietly do nothing.
+#
+# Needs network access: it talks to Wikimedia Commons. Run it where you ran
+# `npm run images`, not in a sandboxed session.
+#
+# You can leave lines here after they are replaced - re-running is harmless,
+# since the exclusions file is the permanent record. Clearing it out keeps
+# the list readable.
+

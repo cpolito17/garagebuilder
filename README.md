@@ -28,6 +28,7 @@ npm run preview      # then, against the running preview:
                      #   node scripts/perf.mjs    LCP and CLS on throttled mobile
 
 npm run images       # fetch vehicle photography from Wikimedia Commons
+npm run images:reject # replace photographs listed in scripts/image-rejects.txt
 npm run coverage     # role and price-tier coverage report for the catalog
 npm run placeholders # flat test patterns, to check photo layout without network
 

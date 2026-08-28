@@ -2,9 +2,9 @@
  * Fetch vehicle photography from Wikimedia Commons.
  *
  * Run this where there is network access:
- *   npm run images              all vehicles missing photos
- *   npm run images -- --force   re-fetch everything
- *   npm run images -- --only mazda-mx5-nc
+ *   npm run images                          all vehicles missing photos
+ *   npm run images -- --force               re-fetch everything
+ *   npm run images -- --only mazda-mx5-nc   one vehicle, or a comma-separated list
  *
  * Writes image files to public/vehicles/ and a manifest to
  * src/data/generated/images.json. The manifest is committed; the binaries are
@@ -45,7 +45,11 @@ const GALLERY_COUNT = 2;
 const args = process.argv.slice(2);
 const force = args.includes('--force');
 const onlyIx = args.indexOf('--only');
-const only = onlyIx >= 0 ? args[onlyIx + 1] : null;
+// A list rather than one id, so scripts/reject-images.ts can replace a whole
+// review pass in a single run instead of one process per vehicle.
+const only = onlyIx >= 0
+  ? new Set((args[onlyIx + 1] ?? '').split(',').map((s) => s.trim()).filter(Boolean))
+  : null;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -82,7 +86,7 @@ async function main() {
     : {};
 
   const targets = CATALOG.filter((v) => {
-    if (only) return v.id === only;
+    if (only) return only.has(v.id);
     const installed = manifest[v.id] ?? [];
     const missingLocalFile = installed.some((image) =>
       !existsSync(`${OUT_DIR}/${image.file}`)

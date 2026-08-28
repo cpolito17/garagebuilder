@@ -27,6 +27,37 @@ keeping its manifest entry:
    `scripts/image-exclusions.json`, then rerun the vehicle. Do not hand-edit the
    generated order; exclusions make the review reproducible.
 
+## Replace a photograph you have rejected
+
+Looking at pictures is how bad ones are found, so the tool takes what you have
+in front of you: the filename. Paste the rejects into `scripts/image-rejects.txt`,
+one per line, then:
+
+```bash
+npm run images:reject -- --dry-run   # what would happen, changes nothing
+npm run images:reject               # record the exclusions and re-fetch
+```
+
+Each line is resolved against the manifest and recorded permanently in
+`scripts/image-exclusions.json`, then the affected vehicles are re-fetched so
+Commons picks different photographs from what remains. A local filename (with
+or without its `@2x` suffix or its directory), a Commons title, a Commons URL,
+or a bare vehicle id for a whole set all work. Text after `#` is a note. A line
+that matches nothing is reported rather than skipped, because a typo that
+silently does nothing leaves a bad photograph on the card while the reviewer
+believes it is gone.
+
+Never swap a file by hand. The manifest entry keeps the previous photographer's
+name, licence and source page, so the credits page and the detail view would
+attribute your replacement to someone else under a licence they chose for a
+different photograph. Re-fetching keeps every credit true. Hand-swapping also
+loses the `@2x` twin, which is what dense displays actually load, so the old
+photograph survives on exactly the devices most people are holding.
+
+When Commons has nothing else free and in-generation, the run says so and the
+vehicle keeps what it had. The exclusion stays recorded, so a later run picks
+up anything newly uploaded.
+
 ## Continue the collection
 
 ```bash
