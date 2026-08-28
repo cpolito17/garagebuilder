@@ -106,4 +106,16 @@ describe('worker', () => {
     expect(await res.text()).toBe('body{color:red}');
     expect(res.headers.get('etag')).toBe('"css"');
   });
+
+  it('redirects www to the apex, keeping the shared garage intact', async () => {
+    const param = encodeGarage(finishedGarage());
+    const res = await get(`https://www.garage.test/?g=${param}`);
+    expect(res.status).toBe(301);
+    expect(res.headers.get('location')).toBe(`https://garage.test/?g=${param}`);
+  });
+
+  it('leaves the apex alone', async () => {
+    const res = await get('https://garage.test/');
+    expect(res.status).toBe(200);
+  });
 });
