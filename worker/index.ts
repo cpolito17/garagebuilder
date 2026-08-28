@@ -21,6 +21,22 @@ export interface Env {
 
 const HTML_TYPES = ['text/html', 'application/xhtml+xml'];
 
+/**
+ * Send www to the apex, permanently.
+ *
+ * Both hostnames are attached to this Worker as Custom Domains, so without
+ * this every shared garage has two addresses that render identically. The
+ * canonical link tag is built from the request origin further down, so a
+ * garage shared from www would advertise itself as www and split its own
+ * preview cache. One origin, decided here, before anything else runs.
+ */
+function apexRedirect(url: URL): Response | null {
+  if (!url.hostname.startsWith('www.')) return null;
+  const target = new URL(url);
+  target.hostname = url.hostname.slice(4);
+  return Response.redirect(target.toString(), 301);
+}
+
 function secureHtmlHeaders(asset: Response): Headers {
   const headers = new Headers(asset.headers);
   for (const name of ['content-length', 'content-encoding', 'etag', 'last-modified']) headers.delete(name);
@@ -38,6 +54,10 @@ function secureHtmlHeaders(asset: Response): Headers {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+
+    const redirect = apexRedirect(url);
+    if (redirect) return redirect;
+
     const asset = await env.ASSETS.fetch(request);
 
     const contentType = asset.headers.get('content-type') ?? '';

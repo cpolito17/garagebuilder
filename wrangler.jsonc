@@ -1,9 +1,25 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "garage-challenge",
+  "name": "garagebuilder",
   "main": "worker/index.ts",
   "compatibility_date": "2026-08-24",
   "observability": { "enabled": true },
+
+  // garagechallenge.lol is the canonical origin. Both hostnames are attached as
+  // Workers Custom Domains, which makes Cloudflare create and manage the
+  // proxied DNS records itself; there is no A/CNAME to hand-write. The Worker
+  // redirects www to the apex, so only one origin is ever indexed or shared.
+  "routes": [
+    { "pattern": "garagechallenge.lol", "custom_domain": true },
+    { "pattern": "www.garagechallenge.lol", "custom_domain": true }
+  ],
+
+  // The workers.dev URL is a second public origin serving the same app, which
+  // splits link previews and search indexing across two hostnames. Off, along
+  // with preview URLs, so the domain is the only way in.
+  "workers_dev": false,
+  "preview_urls": false,
+
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
