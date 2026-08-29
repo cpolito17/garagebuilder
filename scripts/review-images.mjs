@@ -10,12 +10,11 @@
  * until the queue is empty, which is the definition of every photograph
  * approved.
  *
- * Approvals are keyed by Commons file title, never by local filename. A
- * re-fetch reuses the same filenames for different photographs, so a
- * filename-keyed approval would silently bless a photograph nobody looked at.
- * An entry whose source URL carries no title falls back to a vehicle-and-file
- * key: a weaker guarantee, but it keeps such an entry judgeable rather than
- * stuck in the queue forever.
+ * Approvals are keyed by vehicle plus stable source identity, never by local
+ * filename. A re-fetch reuses the same filenames for different photographs,
+ * so a filename-keyed approval would silently bless a photograph nobody
+ * looked at. Vehicle scoping prevents the same source from blessing a wrong
+ * generation or trim.
  *
  * Plain node with no dependencies, and it binds to loopback only: this is a
  * local review tool, not a service.
