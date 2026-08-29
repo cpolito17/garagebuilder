@@ -13,6 +13,7 @@ export type OpenverseImage = {
   license?: string | null;
   license_version?: string | null;
   extension?: string | null;
+  filetype?: string | null;
   source?: string | null;
   provider?: string | null;
 };
@@ -40,8 +41,15 @@ export function openversePage(image: OpenverseImage): CommonsPage | null {
     return null;
   }
 
-  const extension = (image.extension ?? new URL(image.url).pathname.split('.').pop() ?? 'jpg')
+  let urlExtension = 'jpg';
+  try {
+    urlExtension = new URL(image.url).pathname.split('.').pop() || 'jpg';
+  } catch {
+    return null;
+  }
+  const extension = (image.extension ?? image.filetype ?? urlExtension)
     .toLowerCase().replace('jpeg', 'jpg');
+  if (extension !== 'jpg' && extension !== 'png') return null;
   const title = `File:${image.title.replace(/\.(jpe?g|png)$/i, '')}.${extension}`;
 
   return {
