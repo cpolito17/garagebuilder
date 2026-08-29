@@ -1,5 +1,5 @@
 /**
- * Fetch vehicle photography from Wikimedia Commons.
+ * Fetch vehicle photography from Wikimedia Commons, with a safe Openverse fallback.
  *
  * Run this where there is network access:
  *   npm run images                          all vehicles missing photos
@@ -14,7 +14,9 @@
  * typographic identity band, so this never blocks anything.
  *
  * Selection and licence filtering live in scripts/lib/commons.ts and are unit
- * tested. Only files under CC0, public domain, CC BY or CC BY-SA are accepted.
+ * tested. Commons may supply CC0, public domain, CC BY or CC BY-SA. The
+ * non-Wikimedia fallback is restricted to CC0/public domain so the untouched
+ * site's attribution copy remains accurate.
  */
 import { writeFileSync, readFileSync, mkdirSync, existsSync, unlinkSync } from 'node:fs';
 import { CATALOG } from '../src/data/catalog';
