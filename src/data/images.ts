@@ -64,11 +64,28 @@ export const LICENCE_URL: Record<ImageLicence, string | null> = {
   'cc-by-sa': 'https://creativecommons.org/licenses/by-sa/4.0/',
 };
 
+/**
+ * An author name as it can be shown.
+ *
+ * Commons `Artist` fields are free text, and several carry em-dashes
+ * ("CZmarlin — Christopher Ziemnowicz"), which the house style bans in visible
+ * copy and the accessibility audit fails the build over. Substituting a hyphen
+ * keeps the credit accurate down to the character that matters, which is the
+ * name; the dash is punctuation the uploader chose, not part of who they are.
+ *
+ * Applied at display time rather than at fetch time so it covers photographs
+ * already in the manifest, not only ones fetched from here on.
+ */
+export function displayAuthor(author: string): string {
+  return author.replace(/[\u2014\u2013]/g, '-').replace(/\s+/g, ' ').trim();
+}
+
 /** One line of credit, in the form the licences ask for. */
 export function creditLine(image: VehicleImage): string {
   const lic = LICENCE_LABEL[image.licence];
-  if (!requiresAttribution(image.licence)) return `${image.author || 'Unknown'}, ${lic}`;
-  return `${image.author || 'Unknown'}, ${lic}, via Wikimedia Commons`;
+  const author = displayAuthor(image.author) || 'Unknown';
+  if (!requiresAttribution(image.licence)) return `${author}, ${lic}`;
+  return `${author}, ${lic}, via Wikimedia Commons`;
 }
 
 // ---------------------------------------------------------------- manifest
