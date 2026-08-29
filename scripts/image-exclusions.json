@@ -1,9 +1,209 @@
 {
+  "acura-rsx-dc5": [
+    "File:Acura_RSX_Type_S_2006_jdm.jpg"
+  ],
+  "bmw-e30-325i": [
+    "File:1990_BMW_325i_Convertible_(E30)_(5974040579).jpg"
+  ],
+  "bmw-m3-e36": [
+    "File:BMW_M3_Coupé_(E36,_1998)_(52568523217).jpg"
+  ],
+  "bmw-m3-e46": [
+    "File:BMW_M3_Coupé_E46_(5700233802).jpg"
+  ],
+  "bmw-m8-competition-f92": [
+    "File:BMW_M8_Competition_Coupé_(G15,_2020)_(54091730780).jpg"
+  ],
+  "chevrolet-bolt": [
+    "File:Massachusetts_DCR_park_ranger_2017-2021_Chevrolet_Bolt_EV_July_2026.jpg"
+  ],
+  "chevrolet-corvette-c4": [
+    "File:Chevrolet_Corvette_ZR-1_(C4,_1995)_(52960999370).jpg"
+  ],
+  "chevrolet-s10-blazer": [
+    "File:2004_Chevrolet_Blazer.jpg"
+  ],
+  "ferrari-f50-f130": [
+    "File:Ferrari_F50_(1995)_(52962541522).jpg"
+  ],
+  "ferrari-laferrari-f150": [
+    "File:Ferrari_LaFerrari_(2015)_(53619766894).jpg"
+  ],
+  "ford-crown-victoria-p71": [
+    "File:Ford_Crown_Vic_P71_side_front.jpg"
+  ],
+  "ford-explorer-2nd": [
+    "File:Ford_Explorer_Gen2_1995-2001_special_BLACK_EDITION_badgebackleft_2008-04-03_A.jpg"
+  ],
+  "ford-f150-raptor-p702": [
+    "File:2021_Ford_F-150_Raptor.jpg"
+  ],
+  "ford-focus-st-mk3": [
+    "File:2013_Ford_Focus_ST_and_Fiesta_ST_(8403005865).jpg"
+  ],
+  "ford-focus-zx3": [
+    "File:2000_Ford_Focus_ZX3_2.0_USDM.jpg"
+  ],
+  "ford-fusion-cd4": [
+    "File:NYPD_Ford_Fusion_Hybrid_2013.jpg",
+    "File:Trevor_Bayne_2013_Ford_Fusion.jpg"
+  ],
+  "ford-gt-second-generation": [
+    "File:Ford_GT_NYIAS_2018.jpg"
+  ],
+  "ford-ranger-t6": [
+    "File:2019_Ford_Ranger_Wildtrak_T6.jpg",
+    "File:NAIAS_2019_Ford_Ranger_XLT_right_front.jpg"
+  ],
+  "honda-civic-ek": [
+    "File:1992_Honda_Civic_(7601196922).jpg",
+    "File:1993_Honda_Civic_CRX_ESI.jpg"
+  ],
+  "honda-civic-fl": [
+    "File:Honda_Civic_Hybrid_(2022,_Europe)_1X7A6151.jpg"
+  ],
+  "honda-crx-ef": [
+    "File:L13.08.32_-_Youngtimer_-_23_-_Honda_CRX,_1990_-_Mikkel_Gregersen_-_tidtagning_-_DSC_9692_Balancer_(37214008285).jpg"
+  ],
+  "honda-odyssey-rl3": [
+    "File:2005-2007_Honda_Odyssey_-_01.jpg"
+  ],
+  "honda-pilot-yf6": [
+    "File:Honda_Pilot_3.5_Elite_AWD_2016.jpg"
+  ],
+  "infiniti-g37": [
+    "File:2008_Infiniti_G37_Coupe_HCC24.jpg"
+  ],
+  "infiniti-m37-y51": [
+    "File:2011_Infiniti_M37_(6342026204).jpg"
+  ],
+  "jeep-grand-cherokee-wk2": [
+    "File:Jeep_Grand_Cherokee_4X4_Limited_X_WK2_FL_Bright_White_(3).jpg"
+  ],
+  "jeep-wrangler-tj": [
+    "File:2001_Jeep_Landrunner_by_Landrunner_Conversions_on_Jeep_Wrangler_in_Stone_White,_Front_Right_(St._Ignace_2023).jpg"
+  ],
+  "jeep-wrangler-yj": [
+    "File:Jeep_Wrangler_(YJ)_base_model_at_night_finished_in_green_2of2.jpg",
+    "File:Jeep_Wrangler_YJ_Silver_Metallic_Modified_(3).jpg"
+  ],
+  "lexus-gx470": [
+    "File:2006_Lexus_GX_470.JPG"
+  ],
+  "lexus-lx570-j200": [
+    "File:2008_Lexus_LX_570_URJ200,_front_right,_05-05-2024.jpg"
+  ],
+  "lexus-tx-xa20": [
+    "File:2024_Lexus_TX_550h+,_Electrify_Expo_Orlando.jpg"
+  ],
+  "mazda-mx5-nd": [
+    "File:2023_Mazda_MX-5_convertible_MSCC_Miata_Spec_Series_88,_front_right,_07-28-2024.jpg"
+  ],
+  "mazda-rx7-fd": [
+    "File:Mazda_RX-7_Turbo_(1993)_(54094124108).jpg"
+  ],
+  "mazda-rx8-se3p": [
+    "File:2005_red_Mazda_RX-8_pace_car_side.JPG"
+  ],
+  "mclaren-720s": [
+    "File:Atlantic_Blue_Mclaren_720S_at_Geneva_2018_(Ank_Kumar).jpg"
+  ],
+  "mclaren-artura-m630": [
+    "File:McLaren_Artura_(2022)_(52128068292).jpg",
+    "File:McLaren_Artura_MSO_Milan_2022.jpg"
+  ],
+  "mercedes-amg-gt-black-series": [
+    "File:Mercedes-AMG_GT_Black_Series_Coupé_(C190,_2021)_(52868974923).jpg"
+  ],
+  "mercedes-amg-sl-r232": [
+    "File:Mercedes_AMG_SL_MIMO_2022.jpg"
+  ],
+  "mercedes-c63-w204": [
+    "File:2010_Mercedes-Benz_C63_AMG_(W204)_(7475636226).jpg"
+  ],
+  "mercedes-sprinter-vs30": [
+    "File:SA_Ambulance_Mercedes_Benz_Sprinter_419_VS30_Van.jpg"
+  ],
+  "mitsubishi-3000gt": [
+    "File:1993_Mitsubishi_3000_GT_VR-4_(6222797905).jpg"
+  ],
+  "mitsubishi-evo-ix": [
+    "File:2003_Mitsubishi_Lancer_Evo_VIII_(5054773159).jpg"
+  ],
+  "nissan-370z-z34": [
+    "File:2018_Nissan_370Z_-_52724103060.jpg"
+  ],
+  "nissan-leaf-ze1": [
+    "File:Nissan_Leaf_ZE1_EV_2023.jpg"
+  ],
+  "nissan-maxima-a35": [
+    "File:2009-02-21_Nissan_Maxima_in_driveway.jpg"
+  ],
+  "nissan-xterra-n50": [
+    "File:2007_Nissan_Xterra_Off_Road.jpg"
+  ],
+  "pontiac-g8-gt": [
+    "File:2008_Pontiac_G8_02.jpg"
+  ],
+  "pontiac-vibe-e130": [
+    "File:2003-04_Pontiac_Vibe.jpg"
+  ],
+  "porsche-718-spyder-rs-982": [
+    "File:Porsche_718_Boxster_Spyder_RS_(982,_2024)_(54872361889).jpg"
+  ],
+  "porsche-911-turbo-s-9912": [
+    "File:Porsche_911_Turbo_S_Cabriolet_(991.2,_2018)_(54095878179).jpg"
+  ],
+  "porsche-944": [
+    "File:Porsche_944_(1990)_(52874600909).jpg"
+  ],
+  "porsche-cayman-981": [
+    "File:2014_Porsche_981_Cayman_S.jpg"
+  ],
+  "porsche-panamera-gts-971": [
+    "File:Porsche_971_Panamera_GTS_Black_(2).jpg"
+  ],
+  "subaru-svx": [
+    "File:Subaru_SVX_3.3_LSL_1992_(13890551980).jpg"
+  ],
+  "subaru-wrx-sti-gr": [
+    "File:2008_Subaru_Impreza_WRX_STI_Type_UK.jpg"
+  ],
   "tesla-model3": [
-    "File:Tesla_Model_3_Genf_2018.jpg",
-    "File:Tesla_Model_3_E-Cannonball_2018_(45029863405).jpg",
-    "File:Tesla_Model_3_au_SIAM_2020.png",
     "File:2018-2020_Tesla_Model_3_Redbutton_Photo.jpg",
-    "File:Tesla_Model_3_Back_Genf_2018.jpg"
+    "File:Tesla_Model_3_au_SIAM_2020.png",
+    "File:Tesla_Model_3_Back_Genf_2018.jpg",
+    "File:Tesla_Model_3_E-Cannonball_2018_(45029863405).jpg",
+    "File:Tesla_Model_3_Genf_2018.jpg"
+  ],
+  "toyota-4runner-n180": [
+    "File:2001_Toyota_4Runner_Limited_4WD,_Front_right,_01-18-2026.jpg"
+  ],
+  "toyota-4runner-n210": [
+    "File:2005_V6_Toyota_4Runner.jpg"
+  ],
+  "toyota-4runner-n500": [
+    "File:Toyota_4Runner_Las_Vegas_2025.jpg"
+  ],
+  "toyota-avalon-xx50": [
+    "File:2019_FAW-Toyota_Avalon_(XX50)_-_China_(48957267253).jpg"
+  ],
+  "toyota-fj-cruiser": [
+    "File:2007_Queensland_registration_plate_WI2ARD_vanity_on_Toyota_FJ_Cruiser.jpg"
+  ],
+  "toyota-mr2-sw20": [
+    "File:Toyota_MR2_Turbo_(1991)_(52457950301).jpg"
+  ],
+  "toyota-mr2-zzw30": [
+    "File:Toyota_Spyder_MR2_2000_Buggy_Conversion.jpg"
+  ],
+  "toyota-supra-a90": [
+    "File:Osaka_Auto_Messe_2020_(12)_-_Toyota_GR_Supra_(A90)_tuned_by_IDEAL_JAPAN.jpg"
+  ],
+  "toyota-supra-mk3": [
+    "File:1990_Toyota_Supra_(4787850523).jpg"
+  ],
+  "vw-golf-mk6": [
+    "File:Volkswagen_Golf_MK6_6MT.jpg"
   ]
 }

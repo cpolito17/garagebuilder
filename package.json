@@ -13,6 +13,7 @@
     "audit": "node scripts/audit-runner.mjs",
     "coverage": "vite-node scripts/coverage.ts",
     "images": "npm run catalog && vite-node scripts/fetch-images.ts",
+    "images:reject": "npm run catalog && vite-node scripts/reject-images.ts",
     "placeholders": "vite-node scripts/dev-placeholders.ts",
     "images:reset": "node scripts/reset-images.mjs",
     "og:default": "node scripts/og-default-runner.mjs",
