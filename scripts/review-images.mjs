@@ -36,17 +36,6 @@ const DIR = 'public/vehicles';
 const readJson = (path, fallback) =>
   existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback;
 
-/** Commons titles are the stable identity of a photograph. */
-const titleOf = (sourceUrl) => {
-  const at = sourceUrl.indexOf('/wiki/');
-  if (at < 0) return null;
-  try {
-    return decodeURIComponent(sourceUrl.slice(at + 6));
-  } catch {
-    return sourceUrl.slice(at + 6);
-  }
-};
-
 /** Vehicle names, so a card says what the photograph is meant to be of. */
 function vehicleNames() {
   const names = new Map();
