@@ -27,9 +27,8 @@ import {
   type CommonsPage, type VehicleKey,
 } from './lib/commons';
 import { openversePage, type OpenverseResponse } from './lib/openverse';
-import {
-  exclusionMatches, sourceIdentity, titleFromSourceUrl,
-} from './lib/source-identity';
+import { exclusionMatches, sourceIdentity } from './lib/source-identity';
+import { replacementPlan } from './lib/replacement-plan';
 
 const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
 const OPENVERSE_API = 'https://api.openverse.org/v1/images/';
@@ -152,14 +151,9 @@ async function main() {
     // Commons-title exclusions and source-aware exclusions are both supported.
     const exclusions = (imageExclusions as Record<string, string[]>)[v.id] ?? [];
     const installed = manifest[v.id] ?? [];
-    const isExcludedImage = (image: VehicleImage) =>
-      exclusions.some((value) => exclusionMatches(
-        value,
-        titleFromSourceUrl(image.sourceUrl) ?? '',
-        image.sourceUrl,
-      ));
-    const preserved = replaceRejected ? installed.filter((image) => !isExcludedImage(image)) : [];
-    const previousIdentities = new Set(installed.map((image) => sourceIdentity(image.sourceUrl)));
+    const plan = replacementPlan(installed, exclusions, 1 + GALLERY_COUNT);
+    const preserved = replaceRejected ? plan.preserved : [];
+    const previousIdentities = plan.previousIdentities;
     const needed = Math.max(0, 1 + GALLERY_COUNT - preserved.length);
 
     const eligiblePages = (pages: CommonsPage[]) =>
@@ -231,12 +225,9 @@ async function main() {
       console.log(`  ${v.id}: no new free, in-generation photo found among ${pages.length} results${summary ? ` (${summary})` : ''}`);
     }
 
-    const occupiedSlots = new Set(preserved.map((image) => {
-      const match = image.file.match(/-(\d+)\.(?:jpe?g|png)$/i);
-      return match ? Number(match[1]) : -1;
-    }));
-    const freeSlots = Array.from({ length: 1 + GALLERY_COUNT }, (_, index) => index)
-      .filter((index) => !occupiedSlots.has(index));
+    const freeSlots = replaceRejected
+      ? plan.freeSlots
+      : Array.from({ length: 1 + GALLERY_COUNT }, (_, index) => index);
     const images: VehicleImage[] = [...preserved];
 
     for (let pickIndex = 0; pickIndex < picked.length; pickIndex++) {
