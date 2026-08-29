@@ -87,7 +87,25 @@ async function download(url: string, dest: string): Promise<{ ok: boolean; bytes
     console.warn(`    download failed: ${res.status} ${res.statusText} (${url})`);
     return { ok: false, bytes: 0 };
   }
+
+  const type = res.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase();
+  if (type && type !== 'image/jpeg' && type !== 'image/png' && type !== 'application/octet-stream') {
+    console.warn(`    download rejected: unexpected content type ${type} (${url})`);
+    return { ok: false, bytes: 0 };
+  }
+
+  const maxBytes = 20 * 1024 * 1024;
+  const announced = Number(res.headers.get('content-length') ?? 0);
+  if (announced > maxBytes) {
+    console.warn(`    download rejected: source is larger than 20 MB (${url})`);
+    return { ok: false, bytes: 0 };
+  }
+
   const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > maxBytes) {
+    console.warn(`    download rejected: source is larger than 20 MB (${url})`);
+    return { ok: false, bytes: 0 };
+  }
   writeFileSync(dest, buf);
   return { ok: true, bytes: buf.length };
 }
