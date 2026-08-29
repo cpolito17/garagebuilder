@@ -23,7 +23,8 @@
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, createReadStream, statSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-import { extname, join, normalize } from 'node:path';
+import { extname } from 'node:path';
+import { confinedPath } from './lib/confined-path.ts';
 
 const PORT = Number(process.env.PORT ?? 4180);
 const MANIFEST = 'src/data/generated/images.json';
@@ -179,8 +180,8 @@ const server = createServer(async (req, res) => {
     // Confined to the image directory: a review tool should not be a way to
     // read the rest of the disk, however local it is.
     const name = decodeURIComponent(url.pathname.slice('/vehicles/'.length));
-    const path = join(DIR, normalize(name).replace(/^(\.\.[/\\])+/, ''));
-    if (!path.startsWith(DIR) || !existsSync(path) || !statSync(path).isFile()) {
+    const path = confinedPath(DIR, name);
+    if (!path || !existsSync(path) || !statSync(path).isFile()) {
       return send(res, 404, { error: 'not found' });
     }
     const type = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' }[extname(path).toLowerCase()];
