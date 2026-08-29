@@ -7,8 +7,10 @@ import type { ImageLicence } from '../../src/data/images';
  */
 
 export type CommonsPage = {
-  pageid: number;
+  pageid: number | string;
   title: string;
+  /** Which downloader supplied this candidate. Commons when omitted. */
+  provider?: 'commons' | 'openverse';
   imageinfo?: {
     url: string;
     descriptionurl: string;
