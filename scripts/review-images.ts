@@ -20,10 +20,11 @@
  * Plain node with no dependencies, and it binds to loopback only: this is a
  * local review tool, not a service.
  */
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { readFileSync, writeFileSync, existsSync, createReadStream, statSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-import { extname, join, normalize } from 'node:path';
+import path from 'node:path';
+import { resolveInside } from './lib/safe-path';
 
 const PORT = Number(process.env.PORT ?? 4180);
 const MANIFEST = 'src/data/generated/images.json';
@@ -32,11 +33,27 @@ const REJECTS = 'scripts/image-rejects.txt';
 const CATALOG = 'src/data/generated/catalog.slim.json';
 const DIR = 'public/vehicles';
 
-const readJson = (path, fallback) =>
-  existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback;
+function readJson<T>(file: string, fallback: T): T {
+  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as T) : fallback;
+}
+
+type QueueItem = {
+  vehicleId: string;
+  file: string;
+  key: string;
+  licence: string;
+  author: string;
+  sourceUrl: string;
+  hero: boolean;
+  name: string;
+  detail: string;
+};
+
+type ManifestImage = { file: string; licence: string; author: string; sourceUrl: string };
+type Verdict = { file: string; key: string; verdict: 'keep' | 'reject' };
 
 /** Commons titles are the stable identity of a photograph. */
-const titleOf = (sourceUrl) => {
+const titleOf = (sourceUrl: string): string | null => {
   const at = sourceUrl.indexOf('/wiki/');
   if (at < 0) return null;
   try {
@@ -47,9 +64,14 @@ const titleOf = (sourceUrl) => {
 };
 
 /** Vehicle names, so a card says what the photograph is meant to be of. */
-function vehicleNames() {
-  const names = new Map();
-  const slim = readJson(CATALOG, null);
+type SlimCatalog = {
+  d: { make: string[]; model: string[]; generation: string[] };
+  r: [string, number, number, number, number, number, ...unknown[]][];
+};
+
+function vehicleNames(): Map<string, { name: string; detail: string }> {
+  const names = new Map<string, { name: string; detail: string }>();
+  const slim = readJson<SlimCatalog | null>(CATALOG, null);
   if (!slim?.d || !Array.isArray(slim.r)) return names;
   for (const row of slim.r) {
     const [id, makeIdx, modelIdx, genIdx, y0, y1] = row;
@@ -63,15 +85,15 @@ function vehicleNames() {
 
 /** Everything in the manifest that has not been judged yet. */
 function buildQueue() {
-  const manifest = readJson(MANIFEST, {});
-  const approved = new Set(readJson(APPROVALS, []));
+  const manifest = readJson<Record<string, ManifestImage[]>>(MANIFEST, {});
+  const approved = new Set(readJson<string[]>(APPROVALS, []));
   const pending = new Set(
     readFileSync(existsSync(REJECTS) ? REJECTS : '/dev/null', 'utf8')
       .split(/\r?\n/).map((l) => l.replace(/#.*$/, '').trim()).filter(Boolean),
   );
   const names = vehicleNames();
 
-  const queue = [];
+  const queue: QueueItem[] = [];
   let approvedCount = 0;
   for (const [vehicleId, images] of Object.entries(manifest)) {
     for (const image of images) {
@@ -94,25 +116,25 @@ function buildQueue() {
   return { queue, approvedCount, pendingRejects: pending.size };
 }
 
-function recordApproval(key) {
+function recordApproval(key: string) {
   if (!key) return;
-  const approved = readJson(APPROVALS, []);
+  const approved = readJson<string[]>(APPROVALS, []);
   if (approved.includes(key)) return;
   approved.push(key);
   approved.sort();
   writeFileSync(APPROVALS, JSON.stringify(approved, null, 2) + '\n');
 }
 
-function recordRejection(file) {
+function recordRejection(file: string) {
   const existing = existsSync(REJECTS) ? readFileSync(REJECTS, 'utf8') : '';
   const lines = existing.split(/\r?\n/).map((l) => l.replace(/#.*$/, '').trim());
   if (lines.includes(file)) return;
   writeFileSync(REJECTS, existing.replace(/\s*$/, '') + `\n${file}\n`);
 }
 
-function undo(entry) {
+function undo(entry: Partial<Verdict>) {
   if (entry.verdict === 'keep' && entry.key) {
-    const approved = readJson(APPROVALS, []).filter((t) => t !== entry.key);
+    const approved = readJson<string[]>(APPROVALS, []).filter((t) => t !== entry.key);
     writeFileSync(APPROVALS, JSON.stringify(approved, null, 2) + '\n');
   }
   if (entry.verdict === 'reject') {
@@ -123,19 +145,21 @@ function undo(entry) {
   }
 }
 
-const send = (res, status, body, type = 'application/json') => {
+const send = (res: ServerResponse, status: number, body: unknown, type = 'application/json') => {
   res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store' });
   res.end(typeof body === 'string' ? body : JSON.stringify(body));
 };
 
-const readBody = (req) => new Promise((resolve) => {
+const readBody = (req: IncomingMessage) => new Promise<Partial<Verdict>>((resolve) => {
   let raw = '';
-  req.on('data', (c) => { raw += c; if (raw.length > 1e6) req.destroy(); });
-  req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { resolve({}); } });
+  req.on('data', (c) => { raw += String(c); if (raw.length > 1e6) req.destroy(); });
+  req.on('end', () => {
+    try { resolve(JSON.parse(raw || '{}') as Partial<Verdict>); } catch { resolve({}); }
+  });
 });
 
 const server = createServer(async (req, res) => {
-  const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
+  const url = new URL(req.url ?? '/', `http://127.0.0.1:${PORT}`);
 
   if (url.pathname === '/') return send(res, 200, PAGE, 'text/html; charset=utf-8');
 
@@ -145,8 +169,8 @@ const server = createServer(async (req, res) => {
 
   if (url.pathname === '/api/verdict' && req.method === 'POST') {
     const { file, key, verdict } = await readBody(req);
-    if (verdict === 'keep') recordApproval(key);
-    else if (verdict === 'reject') recordRejection(file);
+    if (verdict === 'keep' && key) recordApproval(key);
+    else if (verdict === 'reject' && file) recordRejection(file);
     else return send(res, 400, { error: 'verdict must be keep or reject' });
     return send(res, 200, { ok: true });
   }
@@ -179,14 +203,17 @@ const server = createServer(async (req, res) => {
     // Confined to the image directory: a review tool should not be a way to
     // read the rest of the disk, however local it is.
     const name = decodeURIComponent(url.pathname.slice('/vehicles/'.length));
-    const path = join(DIR, normalize(name).replace(/^(\.\.[/\\])+/, ''));
-    if (!path.startsWith(DIR) || !existsSync(path) || !statSync(path).isFile()) {
+    const file = resolveInside(DIR, name, path);
+    if (!file || !existsSync(file) || !statSync(file).isFile()) {
       return send(res, 404, { error: 'not found' });
     }
-    const type = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' }[extname(path).toLowerCase()];
+    const types: Record<string, string> = {
+      '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+    };
+    const type = types[path.extname(file).toLowerCase()];
     if (!type) return send(res, 415, { error: 'not an image' });
     res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' });
-    return createReadStream(path).pipe(res);
+    return createReadStream(file).pipe(res);
   }
 
   send(res, 404, { error: 'not found' });
