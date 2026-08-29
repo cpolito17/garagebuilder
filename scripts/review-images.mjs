@@ -25,7 +25,7 @@ import { readFileSync, writeFileSync, existsSync, createReadStream, statSync } f
 import { spawn } from 'node:child_process';
 import { extname } from 'node:path';
 import { confinedPath } from './lib/confined-path.ts';
-import { approvalKey, titleFromSourceUrl } from './lib/source-identity.ts';
+import { approvalKey } from './lib/source-identity.ts';
 
 const PORT = Number(process.env.PORT ?? 4180);
 const MANIFEST = 'src/data/generated/images.json';
@@ -77,11 +77,8 @@ function buildQueue() {
   let approvedCount = 0;
   for (const [vehicleId, images] of Object.entries(manifest)) {
     for (const image of images) {
-      const title = titleFromSourceUrl(image.sourceUrl);
       const key = approvalKey(vehicleId, image.sourceUrl);
-      // Legacy title-only approvals remain readable; new approvals are scoped
-      // to the intended vehicle so the same source cannot bless a wrong match.
-      if (approved.has(key) || (title !== null && approved.has(title))) { approvedCount++; continue; }
+      if (approved.has(key)) { approvedCount++; continue; }
       if (pending.has(image.file)) continue;         // already rejected, awaiting Apply
       queue.push({
         vehicleId,
@@ -252,7 +249,7 @@ let roundApproved = 0, roundRejected = 0;
 async function load(resetRound = false) {
   const r = await fetch('/api/queue').then((r) => r.json());
   queue = r.queue; approved = r.approvedCount; pending = r.pendingRejects; i = 0; history = [];
-  if (resetRound) { roundApproved = 0; roundRejected = 0; }
+  if (resetRound) { roundApproved = 0; roundRejected = r.pendingRejects; }
   render();
 }
 
