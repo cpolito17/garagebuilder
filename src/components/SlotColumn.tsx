@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { AnimatePresence } from 'motion/react';
 import { LockOpen } from '@phosphor-icons/react';
-import { CATALOG } from '../data/catalog';
+import { CATALOG, byId } from '../data/catalog';
 import { ROLES, ROLE_LABEL, type Role } from '../data/types';
-import { findMatches, explainEmpty, type Filters, type Match } from '../lib/matching';
+import {
+  DEFAULT_FILTERS, evaluate, findMatches, explainEmpty, type Filters, type Match,
+} from '../lib/matching';
+import { matchesQuery, searchVehicles } from '../lib/vehicleSearch';
 import { formatUsd } from '../lib/pricing';
 import { milesFor, type ConditionId } from '../lib/condition';
 import type { SlotState } from '../state/garage';
@@ -12,6 +15,7 @@ import { ConditionPicker } from './ConditionPicker';
 import { ResultCard } from './ResultCard';
 import { EmptyState } from './EmptyState';
 import { FilterPanel } from './FilterPanel';
+import { VehicleSearch } from './VehicleSearch';
 
 const RESULT_LIMIT = 12;
 
@@ -46,11 +50,56 @@ export function SlotColumn({
     [allocated, slot.role, odometer, slot.filters],
   );
 
-  const pick = slot.pick ? list.matches.find((m) => m.vehicle.id === slot.pick) : undefined;
-  const shown = slot.pinned && pick ? [pick] : list.matches.slice(0, RESULT_LIMIT);
+  const [query, setQuery] = useState('');
+  const searching = query.trim() !== '';
+
+  /**
+   * A locked car is shown whether or not the slot's own role and filters would
+   * have offered it. Search reaches the whole catalog, so a deliberate pick can
+   * sit outside them, and a locked slot that renders a list instead of its car
+   * would read as having lost it.
+   */
+  const pick = useMemo(() => {
+    if (!slot.pick) return undefined;
+    const inList = list.matches.find((m) => m.vehicle.id === slot.pick);
+    if (inList) return inList;
+    const vehicle = byId.get(slot.pick);
+    if (!vehicle) return undefined;
+    const outcome = evaluate(vehicle, {
+      budget: allocated, role: null, odometer, filters: DEFAULT_FILTERS,
+    });
+    return outcome.kind === 'match' ? outcome : undefined;
+  }, [slot.pick, list.matches, allocated, odometer]);
+
+  // The search narrows this slot's own list as well as feeding the dropdown,
+  // so the results underneath answer the same question the field was asked.
+  const visible = useMemo(
+    () => (searching ? list.matches.filter((m) => matchesQuery(m.vehicle, query)) : list.matches),
+    [list.matches, query, searching],
+  );
+
+  const shown = slot.pinned && pick ? [pick] : visible.slice(0, RESULT_LIMIT);
   const empty = explainEmpty(list, {
     budget: allocated, role: slot.role, odometer, filters: slot.filters,
   });
+
+  /**
+   * Why a search came back empty, which is never the same reason as an empty
+   * unsearched slot: the name is not in the catalog, the car is real but costs
+   * more than this slot holds, or it is affordable and this slot's own role or
+   * filters exclude it.
+   */
+  const searchEmpty = useMemo(() => {
+    if (!searching) return null;
+    const term = query.trim();
+    const hits = searchVehicles(CATALOG, query, { budget: allocated, odometer, limit: 5 });
+    if (hits.length === 0) return `Nothing in the catalog is called \u201c${term}\u201d.`;
+    const cheapest = hits.reduce((a, b) => (b.price < a.price ? b : a));
+    const name = `${cheapest.vehicle.make} ${cheapest.vehicle.model}`;
+    return cheapest.overBudget
+      ? `No \u201c${term}\u201d fits this slot\u2019s ${formatUsd(allocated)}. The cheapest is the ${name} at ${formatUsd(cheapest.price)}, out of budget here. Move money into this slot or choose a rougher condition.`
+      : `The ${name} matches \u201c${term}\u201d and fits the budget, but this slot\u2019s purpose or filters exclude it. Clear a filter, or pick it from the search list to lock it in anyway.`;
+  }, [searching, query, allocated, odometer]);
 
   return (
     <section
@@ -97,6 +146,14 @@ export function SlotColumn({
 
           {!slot.pinned && (
             <>
+              <VehicleSearch
+                query={query}
+                budget={allocated}
+                odometer={odometer}
+                condition={slot.condition}
+                onQuery={setQuery}
+                onSelect={(s) => onStar(s.vehicle.id, s.price)}
+              />
               <ConditionPicker value={slot.condition} onChange={onCondition} />
               <FilterPanel
                 filters={slot.filters}
@@ -112,20 +169,26 @@ export function SlotColumn({
 
       <div className="flex items-baseline justify-between gap-2 px-1">
         <span className="t-label text-[--text-tertiary]">
-          {slot.pinned ? 'Locked in' : `${list.matches.length} ${list.matches.length === 1 ? 'match' : 'matches'}`}
+          {slot.pinned
+            ? 'Locked in'
+            : `${visible.length} ${visible.length === 1 ? 'match' : 'matches'}${searching ? ' for this search' : ''}`}
         </span>
-        {!slot.pinned && list.matches.length > RESULT_LIMIT && (
+        {!slot.pinned && visible.length > RESULT_LIMIT && (
           <span className="num t-small text-[--text-tertiary]">top {RESULT_LIMIT}</span>
         )}
       </div>
 
       <div className="flex flex-col gap-3">
         {shown.length === 0 ? (
-          <EmptyState
-            message={empty.message}
-            action={empty.action ? { label: empty.action.label, value: empty.action.value } : undefined}
-            onAction={onCondition}
-          />
+          searchEmpty ? (
+            <EmptyState message={searchEmpty} />
+          ) : (
+            <EmptyState
+              message={empty.message}
+              action={empty.action ? { label: empty.action.label, value: empty.action.value } : undefined}
+              onAction={onCondition}
+            />
+          )
         ) : (
           <AnimatePresence initial={false} mode="popLayout">
             {shown.map((m, i) => (
