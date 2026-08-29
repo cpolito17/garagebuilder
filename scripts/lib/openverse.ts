@@ -16,6 +16,7 @@ export type OpenverseImage = {
   filetype?: string | null;
   source?: string | null;
   provider?: string | null;
+  tags?: Array<{ name?: string | null }> | null;
 };
 
 export type OpenverseResponse = {
@@ -50,7 +51,9 @@ export function openversePage(image: OpenverseImage): CommonsPage | null {
   const extension = (image.extension ?? image.filetype ?? urlExtension)
     .toLowerCase().replace('jpeg', 'jpg');
   if (extension !== 'jpg' && extension !== 'png') return null;
-  const title = `File:${image.title.replace(/\.(jpe?g|png)$/i, '')}.${extension}`;
+  const tagText = (image.tags ?? []).map((tag) => tag.name?.trim()).filter(Boolean).slice(0, 20).join(' ');
+  const searchableTitle = `${image.title} ${tagText}`.trim();
+  const title = `File:${searchableTitle.replace(/\.(jpe?g|png)$/i, '')}.${extension}`;
 
   return {
     pageid: `openverse:${image.provider ?? image.source ?? 'unknown'}:${image.id}`,
