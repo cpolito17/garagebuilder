@@ -7,8 +7,8 @@
 #
 # Each line is matched against the manifest and turned into a permanent entry
 # in scripts/image-exclusions.json, so a photograph rejected here is never
-# picked again on any clone. The vehicle is then re-fetched from Wikimedia
-# Commons, which chooses different photographs from what is left.
+# picked again on any clone. Approved slots stay in place; rejected slots are
+# searched again through Wikimedia Commons and the safe Openverse fallback.
 #
 # Any of these forms works, so paste whatever you have in front of you:
 #
@@ -17,13 +17,14 @@
 #     public/vehicles/bmw-m3-e46-1.jpg  a path, slashes either way
 #     File:Some_BMW_Photo.jpg           a Commons file title
 #     https://commons.wikimedia.org/wiki/File:Some_BMW_Photo.jpg
+#     https://www.flickr.com/photos/author/12345  a fallback source page
 #     bmw-m3-e46                        a bare vehicle id rejects its whole set
 #
 # Text after a # is a note, so you can say why. Blank lines are ignored.
 # A line that matches nothing is reported rather than skipped silently, so a
 # typo cannot quietly do nothing.
 #
-# Needs network access: it talks to Wikimedia Commons. Run it where you ran
+# Needs network access: it talks to Commons and Openverse. Run it where you ran
 # `npm run images`, not in a sandboxed session.
 #
 # You can leave lines here after they are replaced - re-running is harmless,

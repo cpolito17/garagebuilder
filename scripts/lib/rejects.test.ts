@@ -50,6 +50,27 @@ describe('reading a reject list', () => {
     expect(byTitle.rejections[0]!.file).toBe('bmw-m3-e46-0.jpg');
   });
 
+  it('accepts a non-Commons landing URL and records its stable source identity', () => {
+    const openverseManifest: ImageManifest = {
+      ...MANIFEST,
+      'bmw-m3-e92': [{
+        ...image('bmw-m3-e92-0.jpg', 'unused'),
+        licence: 'cc0',
+        sourceUrl: 'https://www.flickr.com/photos/jane/12345',
+      }],
+    };
+    const result = resolveRejects(
+      ['https://www.flickr.com/photos/jane/12345'],
+      openverseManifest,
+    );
+    expect(result.unresolved).toHaveLength(0);
+    expect(result.rejections[0]).toEqual({
+      vehicleId: 'bmw-m3-e92',
+      title: 'url:https://www.flickr.com/photos/jane/12345',
+      file: 'bmw-m3-e92-0.jpg',
+    });
+  });
+
   it('rejects a whole set from a bare vehicle id', () => {
     const { rejections } = resolveRejects(['bmw-m3-e46'], MANIFEST);
     expect(rejections.map((r) => r.file)).toEqual(['bmw-m3-e46-0.jpg', 'bmw-m3-e46-1.jpg']);

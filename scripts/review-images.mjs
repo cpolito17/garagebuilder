@@ -10,12 +10,11 @@
  * until the queue is empty, which is the definition of every photograph
  * approved.
  *
- * Approvals are keyed by Commons file title, never by local filename. A
- * re-fetch reuses the same filenames for different photographs, so a
- * filename-keyed approval would silently bless a photograph nobody looked at.
- * An entry whose source URL carries no title falls back to a vehicle-and-file
- * key: a weaker guarantee, but it keeps such an entry judgeable rather than
- * stuck in the queue forever.
+ * Approvals are keyed by vehicle plus stable source identity, never by local
+ * filename. A re-fetch reuses the same filenames for different photographs,
+ * so a filename-keyed approval would silently bless a photograph nobody
+ * looked at. Vehicle scoping prevents the same source from blessing a wrong
+ * generation or trim.
  *
  * Plain node with no dependencies, and it binds to loopback only: this is a
  * local review tool, not a service.
@@ -25,6 +24,7 @@ import { readFileSync, writeFileSync, existsSync, createReadStream, statSync } f
 import { spawn } from 'node:child_process';
 import { extname } from 'node:path';
 import { confinedPath } from './lib/confined-path.ts';
+import { approvalKey } from './lib/source-identity.ts';
 
 const PORT = Number(process.env.PORT ?? 4180);
 const MANIFEST = 'src/data/generated/images.json';
@@ -35,17 +35,6 @@ const DIR = 'public/vehicles';
 
 const readJson = (path, fallback) =>
   existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback;
-
-/** Commons titles are the stable identity of a photograph. */
-const titleOf = (sourceUrl) => {
-  const at = sourceUrl.indexOf('/wiki/');
-  if (at < 0) return null;
-  try {
-    return decodeURIComponent(sourceUrl.slice(at + 6));
-  } catch {
-    return sourceUrl.slice(at + 6);
-  }
-};
 
 /** Vehicle names, so a card says what the photograph is meant to be of. */
 function vehicleNames() {
@@ -67,7 +56,7 @@ function buildQueue() {
   const manifest = readJson(MANIFEST, {});
   const approved = new Set(readJson(APPROVALS, []));
   const pending = new Set(
-    readFileSync(existsSync(REJECTS) ? REJECTS : '/dev/null', 'utf8')
+    (existsSync(REJECTS) ? readFileSync(REJECTS, 'utf8') : '')
       .split(/\r?\n/).map((l) => l.replace(/#.*$/, '').trim()).filter(Boolean),
   );
   const names = vehicleNames();
@@ -76,8 +65,7 @@ function buildQueue() {
   let approvedCount = 0;
   for (const [vehicleId, images] of Object.entries(manifest)) {
     for (const image of images) {
-      const title = titleOf(image.sourceUrl);
-      const key = title ?? `${vehicleId}::${image.file}`;
+      const key = approvalKey(vehicleId, image.sourceUrl);
       if (approved.has(key)) { approvedCount++; continue; }
       if (pending.has(image.file)) continue;         // already rejected, awaiting Apply
       queue.push({
@@ -158,7 +146,7 @@ const server = createServer(async (req, res) => {
   }
 
   // Apply hands off to the reject tool, which owns exclusions and re-fetching.
-  if (url.pathname === '/api/apply' && req.method === 'POST') {
+  if ((url.pathname === '/api/next-round' || url.pathname === '/api/apply') && req.method === 'POST') {
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
     const child = spawn('npm', ['run', 'images:reject'], { shell: process.platform === 'win32' });
     child.stdout.on('data', (d) => res.write(d));
@@ -225,7 +213,11 @@ const PAGE = `<!doctype html>
   button:disabled { opacity:.4; cursor:default; }
   pre { width:min(900px,100%); background:#000; border:1px solid var(--line); border-radius:12px; padding:12px;
         white-space:pre-wrap; font-size:12px; max-height:40vh; overflow:auto; margin:0; }
-  .done { text-align:center; padding:40px 20px; }
+  .done { text-align:center; padding:32px 20px; }
+  .stats { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:22px auto; max-width:420px; }
+  .stats div { border:1px solid var(--line); border-radius:12px; padding:18px; display:grid; gap:4px; }
+  .stats strong { font-size:36px; font-variant-numeric:tabular-nums; }
+  .stats span { color:var(--dim); font-size:13px; text-transform:uppercase; letter-spacing:.08em; }
 </style></head>
 <body>
 <header>
@@ -240,10 +232,12 @@ const app = document.getElementById('app');
 const countEl = document.getElementById('count');
 const logEl = document.getElementById('log');
 let queue = [], i = 0, history = [], approved = 0, pending = 0, busy = false;
+let roundApproved = 0, roundRejected = 0;
 
-async function load() {
+async function load(resetRound = false) {
   const r = await fetch('/api/queue').then((r) => r.json());
   queue = r.queue; approved = r.approvedCount; pending = r.pendingRejects; i = 0; history = [];
+  if (resetRound) { roundApproved = 0; roundRejected = r.pendingRejects; }
   render();
 }
 
@@ -254,17 +248,20 @@ function render() {
 
   if (i >= queue.length) {
     app.innerHTML = '<div class="card done">' +
+      '<p><b>Round complete</b></p>' +
+      '<div class="stats"><div><strong>' + roundApproved + '</strong><span>Approved</span></div>' +
+      '<div><strong>' + roundRejected + '</strong><span>Rejected</span></div></div>' +
       (pending > 0
-        ? '<p><b>' + pending + ' photograph(s) to replace.</b></p><p class="dim">Applying records them permanently and re-fetches from Commons. Takes a moment per vehicle.</p>'
-        : '<p><b>Nothing left to judge.</b></p><p class="dim">Every photograph in the manifest is approved.</p>') +
+        ? '<p class="dim">The next round permanently excludes every rejection, keeps approved slots untouched, and searches Commons plus the safe Openverse fallback for genuinely new replacements.</p>'
+        : '<p class="dim">Every photograph currently in the manifest is approved.</p>') +
       '</div>' +
       '<div class="row" style="margin-top:10px">' +
-        (pending > 0 ? '<button class="keep" id="apply">Apply ' + pending + ' rejection(s) and re-fetch</button>' : '') +
+        (pending > 0 ? '<button class="keep" id="next">Start next round (' + pending + ' replacement' + (pending === 1 ? '' : 's') + ')</button>' : '') +
         '<button class="ghost" id="reload">Reload</button>' +
       '</div>';
-    const apply = document.getElementById('apply');
-    if (apply) apply.onclick = doApply;
-    document.getElementById('reload').onclick = load;
+    const next = document.getElementById('next');
+    if (next) next.onclick = startNextRound;
+    document.getElementById('reload').onclick = () => load(false);
     return;
   }
 
@@ -304,7 +301,8 @@ async function judge(verdict) {
   await fetch('/api/verdict', { method:'POST', headers:{'content-type':'application/json'},
     body: JSON.stringify({ file:item.file, key:item.key, verdict }) });
   history.push({ ...item, verdict });
-  if (verdict === 'keep') approved++; else pending++;
+  if (verdict === 'keep') { approved++; roundApproved++; }
+  else { pending++; roundRejected++; }
   i++; busy = false; render();
 }
 
@@ -312,13 +310,14 @@ async function undo() {
   const last = history.pop();
   if (!last) return;
   await fetch('/api/undo', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(last) });
-  if (last.verdict === 'keep') approved--; else pending--;
+  if (last.verdict === 'keep') { approved--; roundApproved--; }
+  else { pending--; roundRejected--; }
   i--; render();
 }
 
-async function doApply() {
+async function startNextRound() {
   logEl.hidden = false; logEl.textContent = 'Re-fetching...\\n';
-  const res = await fetch('/api/apply', { method: 'POST' });
+  const res = await fetch('/api/next-round', { method: 'POST' });
   const reader = res.body.getReader(); const dec = new TextDecoder();
   for (;;) {
     const { value, done } = await reader.read();
@@ -326,7 +325,7 @@ async function doApply() {
     logEl.textContent += dec.decode(value, { stream: true });
     logEl.scrollTop = logEl.scrollHeight;
   }
-  await load();
+  await load(true);
 }
 
 document.addEventListener('keydown', (e) => {
@@ -360,7 +359,7 @@ function swipe(el) {
   el.addEventListener('pointercancel', () => { x0 = null; el.style.transform = ''; });
 }
 
-load();
+load(true);
 </script>
 </body></html>`;
 

@@ -7,8 +7,10 @@ import type { ImageLicence } from '../../src/data/images';
  */
 
 export type CommonsPage = {
-  pageid: number;
+  pageid: number | string;
   title: string;
+  /** Which downloader supplied this candidate. Commons when omitted. */
+  provider?: 'commons' | 'openverse';
   imageinfo?: {
     url: string;
     descriptionurl: string;
@@ -57,8 +59,8 @@ const REJECT_TITLE = [
 const REJECT_ALTERED = [
   'modified', 'modded', 'tuning', 'tuned', 'custom', 'restomod', 'widebody',
   'wide body', 'body kit', 'bodykit', 'stance', 'stanced', 'slammed', 'lowered',
-  'lifted', 'swap', 'swapped', 'drift', 'drifting', 'livery', 'wrapped',
-  'wrap ', 'replica', 'kit car', 'race car', 'racecar', 'rally car', 'racing',
+  'lifted', 'swap', 'swapped', 'drift', 'drifting', 'livery', 'liveried', 'wrapped',
+  'wrap ', 'replica', 'kit car', 'race car', 'racecar', 'rally', 'rally car', 'racing',
   'race ', 'spec miata', 'time attack', 'autocross', 'rallycross', 'nascar',
   'police', 'polizei', 'sheriff', 'taxi', 'ambulance', 'hearse', 'fire dept',
   'tuner', 'showcar', 'show car', 'prototype', 'concept', 'camouflage',

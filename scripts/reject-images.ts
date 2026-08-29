@@ -19,7 +19,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import type { ImageManifest } from '../src/data/images';
-import { resolveRejects, mergeExclusions, normaliseTitle, titleFromSourceUrl } from './lib/rejects';
+import { resolveRejects, mergeExclusions, normaliseTitle } from './lib/rejects';
+import { exclusionMatches, sourceIdentity, titleFromSourceUrl } from './lib/source-identity';
 
 const REJECTS = 'scripts/image-rejects.txt';
 const EXCLUSIONS = 'scripts/image-exclusions.json';
@@ -39,6 +40,12 @@ function main() {
   }
 
   const manifest = readManifest();
+  const beforeIdentities = new Map(
+    Object.entries(manifest).map(([id, images]) => [
+      id,
+      new Set(images.map((image) => sourceIdentity(image.sourceUrl))),
+    ]),
+  );
   if (Object.keys(manifest).length === 0) {
     console.error(`${MANIFEST} has no photographs in it. Run "npm run images" first.`);
     process.exit(1);
@@ -89,7 +96,7 @@ function main() {
   // it rather than reimplementing any of that here.
   const result = spawnSync(
     process.execPath,
-    ['node_modules/vite-node/dist/cli.mjs', 'scripts/fetch-images.ts', '--force', '--only', vehicles.join(',')],
+    ['node_modules/vite-node/dist/cli.mjs', 'scripts/fetch-images.ts', '--force', '--replace-rejected', '--only', vehicles.join(',')],
     { stdio: 'inherit' },
   );
   if (result.status !== 0) {
@@ -101,10 +108,18 @@ function main() {
   // else free and in-generation, so the fetcher kept what it had.
   const after = readManifest();
   const survivors = rejections.filter(({ vehicleId, title }) =>
-    (after[vehicleId] ?? []).some((image) => {
-      const t = titleFromSourceUrl(image.sourceUrl);
-      return t !== null && normaliseTitle(t) === normaliseTitle(title);
-    }));
+    (after[vehicleId] ?? []).some((image) =>
+      exclusionMatches(title, titleFromSourceUrl(image.sourceUrl) ?? '', image.sourceUrl)));
+
+  let newCount = 0;
+  let openSlots = 0;
+  for (const vehicleId of vehicles) {
+    const before = beforeIdentities.get(vehicleId) ?? new Set<string>();
+    const current = after[vehicleId] ?? [];
+    const added = current.filter((image) => !before.has(sourceIdentity(image.sourceUrl)));
+    newCount += added.length;
+    openSlots += Math.max(0, 3 - current.length);
+  }
 
   if (survivors.length > 0) {
     console.log(`\n${survivors.length} rejected photograph(s) are still in the manifest:`);
@@ -112,7 +127,11 @@ function main() {
     console.log('Commons had no other free, in-generation photograph for these. They stay');
     console.log('excluded, so a later run picks up anything newly uploaded.');
   } else {
-    console.log('\nEvery rejected photograph was replaced.');
+    console.log('\nNo rejected source remains in the manifest.');
+  }
+  console.log(`Verified ${newCount} newly sourced replacement photograph(s).`);
+  if (openSlots > 0) {
+    console.log(`${openSlots} slot(s) remain empty because neither Commons nor the safe Openverse fallback had a usable new image.`);
   }
   console.log(`\nReview the new files in public/vehicles, then commit ${EXCLUSIONS} and ${MANIFEST}.`);
 }

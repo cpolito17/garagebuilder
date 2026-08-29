@@ -34,16 +34,31 @@ npm run images:review      # then open http://127.0.0.1:4180
 ```
 
 One photograph at a time. Right arrow or a swipe right keeps it, left rejects
-it, backspace undoes. When a batch is judged, Apply records the rejects in
-`scripts/image-exclusions.json`, re-fetches the affected vehicles, and brings
-the replacements back into the queue. Repeat until the queue is empty, which is
-what "every photograph approved" means.
+it, backspace undoes. At the end of a round the review page reports that
+round's approved and rejected totals. **Start next round** records every
+rejection in `scripts/image-exclusions.json`, keeps approved slots untouched,
+and fetches genuinely new candidates for rejected slots. Repeat until the
+queue is empty, which is what "every photograph approved" means.
 
-Approvals live in `scripts/image-approvals.json`, keyed by Commons file title
-rather than by local filename. A re-fetch reuses filenames for different
-photographs, so a filename-keyed approval would silently bless a photograph
-nobody looked at. Committing the file means a clone starts where the last
+Commons is searched first. When it cannot fill a slot, the collector also
+searches Openverse for non-Wikimedia CC0 and public-domain photographs. The
+narrow licence set is deliberate: the application currently labels
+attribution-required work as coming through Commons, so admitting an
+attribution-required photograph from another provider would make that credit
+false. Every fallback keeps its original provider landing page as its source.
+
+Approvals live in `scripts/image-approvals.json`, keyed by vehicle plus stable
+source identity rather than by local filename. A re-fetch reuses filenames for
+different photographs, so a filename-keyed approval would silently bless a
+photograph nobody looked at. Vehicle scoping also prevents a photograph
+approved for one catalog record from being silently approved for a different
+generation or trim. Committing the file means a clone starts where the last
 review pass finished rather than at the beginning.
+
+The next-round fetch excludes every source seen in the previous round, verifies
+that no rejected source survives, and reports the number of newly sourced
+replacements. If neither Commons nor Openverse has a safe new candidate, the
+slot stays empty instead of cycling the rejected photograph forever.
 
 The list below is the same mechanism without the browser, for when a filename
 is already in hand.
@@ -120,3 +135,23 @@ Each accepted record has one hero and two gallery images. The pilot therefore
 adds 24 reviewed photographs across eight of the current 325 catalog records:
 18 CC BY-SA, four CC BY, one CC0 and one public-domain image. The typographic
 identity band remains the designed fallback for the remaining records.
+
+
+## Deploy the reviewed collection
+
+Photo binaries are intentionally ignored by Git, so deploy from the same local
+workspace in which the review rounds downloaded them:
+
+```bash
+npm ci
+npm test
+npm run build
+npx wrangler whoami       # use npx wrangler login first if needed
+npm run worker:deploy
+```
+
+`worker:deploy` rebuilds the catalog and app, then deploys the Worker and the
+current `dist/vehicles/` assets. Do not deploy from a clean checkout unless you
+first restore or fetch the reviewed image binaries; the committed manifest alone
+cannot recreate the exact reviewed bytes because source search results can
+change.

@@ -267,6 +267,8 @@ describe('a car that is not the catalog car', () => {
       'File:2008 Mazda MX-5 Miata modified.jpg',
       'File:2008 Mazda MX-5 Miata widebody.jpg',
       'File:2008 Mazda MX-5 Miata drift car.jpg',
+      'File:2008 Mazda MX-5 Miata rally.jpg',
+      'File:2008 Mazda MX-5 Miata liveried.jpg',
       'File:2008 Mazda MX-5 Miata race car.jpg',
       'File:2008 Mazda MX-5 Miata replica.jpg',
       'File:2008 Mazda MX-5 Miata custom build.jpg',
