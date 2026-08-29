@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildQueries, extractYear, generationSignals, normaliseArtist, classifyLicence,
-  scoreCandidate, pickBest, fileNameFor, type CommonsPage, type VehicleKey,
+  scoreCandidate, pickBest, fileNameFor, distinctiveTokens, isNearDuplicate,
+  type CommonsPage, type VehicleKey,
 } from './commons';
 
 const nc: VehicleKey = {
@@ -244,5 +245,120 @@ describe('file naming', () => {
   it('is deterministic and keeps the source extension', () => {
     expect(fileNameFor(nc, 0, 'File:Foo.JPG')).toBe('mazda-mx5-nc-0.jpg');
     expect(fileNameFor(nc, 2, 'File:Foo.png')).toBe('mazda-mx5-nc-2.png');
+  });
+});
+
+// ---------------------------------------------------------------- quality
+
+const scoreOf = (title: string, v: VehicleKey = nc) => {
+  const r = scoreCandidate(page(title), v);
+  return 'rejected' in r ? null : r.score;
+};
+const rejectionOf = (title: string, v: VehicleKey = nc) => {
+  const r = scoreCandidate(page(title), v);
+  return 'rejected' in r ? r.rejected : null;
+};
+
+describe('a car that is not the catalog car', () => {
+  it('rejects a modified, liveried or replica example', () => {
+    // A widebody drift car is a different object from the vehicle someone
+    // would be shopping for, so it is worse than no photograph.
+    for (const title of [
+      'File:2008 Mazda MX-5 Miata modified.jpg',
+      'File:2008 Mazda MX-5 Miata widebody.jpg',
+      'File:2008 Mazda MX-5 Miata drift car.jpg',
+      'File:2008 Mazda MX-5 Miata race car.jpg',
+      'File:2008 Mazda MX-5 Miata replica.jpg',
+      'File:2008 Mazda MX-5 Miata custom build.jpg',
+      'File:2008 Mazda MX-5 Miata police car.jpg',
+      'File:2008 Mazda MX-5 Miata concept.jpg',
+    ]) {
+      expect(rejectionOf(title), title).toMatch(/not a stock car/);
+    }
+  });
+
+  it('still accepts an ordinary stock photograph', () => {
+    expect(rejectionOf('File:2008 Mazda MX-5 Miata front right.jpg')).toBeNull();
+  });
+});
+
+describe('framing', () => {
+  it('prefers a quarter view over a flat head-on shot', () => {
+    const quarter = scoreOf('File:2008 Mazda MX-5 Miata front right.jpg')!;
+    const headOn = scoreOf('File:2008 Mazda MX-5 Miata front.jpg')!;
+    expect(quarter).toBeGreaterThan(headOn);
+  });
+
+  it('demotes a show, a crowd, several cars, and frames too far or too close', () => {
+    const plain = scoreOf('File:2008 Mazda MX-5 Miata front right.jpg')!;
+    for (const title of [
+      'File:2008 Mazda MX-5 Miata front right at the Geneva auto show.jpg',
+      'File:2008 Mazda MX-5 Miata front right in a crowd.jpg',
+      'File:2008 Mazda MX-5 Miata front right lineup.jpg',
+      'File:2008 Mazda MX-5 Miata front right aerial.jpg',
+      'File:2008 Mazda MX-5 Miata front right detail.jpg',
+    ]) {
+      expect(scoreOf(title), title).toBeLessThan(plain);
+    }
+  });
+
+  it('demotes a title naming a second car with an ampersand', () => {
+    // Real case: "Tesla Model 3 & Chevy Bolt EV DCA 08 2018". The ampersand is
+    // stripped by phrase normalisation, so it is matched on the raw title.
+    const alone = scoreOf('File:2008 Mazda MX-5 Miata in Durham.jpg')!;
+    const pair = scoreOf('File:2008 Mazda MX-5 Miata & Honda S2000 in Durham.jpg')!;
+    expect(pair).toBeLessThan(alone);
+  });
+
+  it('demotes rather than rejects, so a show photo is still better than nothing', () => {
+    expect(rejectionOf('File:2008 Mazda MX-5 Miata front right at the Geneva auto show.jpg'))
+      .toBeNull();
+  });
+
+  it('leaves the engine-photo rejection of "motor" alone', () => {
+    // "Geneva Motor Show" is rejected outright rather than penalised, because
+    // REJECT_TITLE already treats a bare "motor" as an engine close-up. The
+    // outcome is the one we want either way, so the lists do not fight.
+    expect(rejectionOf('File:2008 Mazda MX-5 Miata at the Geneva Motor Show.jpg'))
+      .toMatch(/motor/);
+  });
+});
+
+describe('the same photograph twice', () => {
+  it('reduces a title to the occasion it records', () => {
+    expect([...distinctiveTokens('File:Mazda MX-5 Miata NC Genf 2018.jpg', nc)]).toEqual(['genf']);
+    // Framing words and dates say nothing about which photograph this is.
+    expect([...distinctiveTokens('File:Mazda MX-5 Miata front right 06-08-2023.jpg', nc)]).toEqual([]);
+  });
+
+  it('calls two frames of one occasion the same photograph', () => {
+    const a = distinctiveTokens('File:Mazda MX-5 Miata Genf 2018.jpg', nc);
+    const b = distinctiveTokens('File:Mazda MX-5 Miata Back Genf 2018.jpg', nc);
+    expect(isNearDuplicate(a, b)).toBe(true);
+  });
+
+  it('does not call two unrelated photographs duplicates', () => {
+    const a = distinctiveTokens('File:Mazda MX-5 Miata in Durham.jpg', nc);
+    const b = distinctiveTokens('File:Mazda MX-5 Miata Marble White.jpg', nc);
+    expect(isNearDuplicate(a, b)).toBe(false);
+  });
+
+  it('treats a title with nothing distinctive left as unknown, not identical', () => {
+    // Two plain "front right" titles may well be different cars entirely.
+    const a = distinctiveTokens('File:Mazda MX-5 Miata front right.jpg', nc);
+    const b = distinctiveTokens('File:Mazda MX-5 Miata front left.jpg', nc);
+    expect(isNearDuplicate(a, b)).toBe(false);
+  });
+
+  it('keeps only one of a set taken at the same event', () => {
+    const picked = pickBest([
+      page('File:Mazda MX-5 Miata 2008 front right Genf.jpg', { artist: 'A' }),
+      page('File:Mazda MX-5 Miata 2009 front left Genf.jpg', { artist: 'B' }),
+      page('File:Mazda MX-5 Miata 2010 front right Durham.jpg', { artist: 'C' }),
+    ], nc, 3);
+    const titles = picked.map((c) => c.page.title);
+    expect(titles).toHaveLength(2);
+    expect(titles.some((t) => t.includes('Durham'))).toBe(true);
+    expect(titles.filter((t) => t.includes('Genf'))).toHaveLength(1);
   });
 });

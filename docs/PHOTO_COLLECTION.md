@@ -27,6 +27,27 @@ keeping its manifest entry:
    `scripts/image-exclusions.json`, then rerun the vehicle. Do not hand-edit the
    generated order; exclusions make the review reproducible.
 
+## Review by eye
+
+```bash
+npm run images:review      # then open http://127.0.0.1:4180
+```
+
+One photograph at a time. Right arrow or a swipe right keeps it, left rejects
+it, backspace undoes. When a batch is judged, Apply records the rejects in
+`scripts/image-exclusions.json`, re-fetches the affected vehicles, and brings
+the replacements back into the queue. Repeat until the queue is empty, which is
+what "every photograph approved" means.
+
+Approvals live in `scripts/image-approvals.json`, keyed by Commons file title
+rather than by local filename. A re-fetch reuses filenames for different
+photographs, so a filename-keyed approval would silently bless a photograph
+nobody looked at. Committing the file means a clone starts where the last
+review pass finished rather than at the beginning.
+
+The list below is the same mechanism without the browser, for when a filename
+is already in hand.
+
 ## Replace a photograph you have rejected
 
 Looking at pictures is how bad ones are found, so the tool takes what you have

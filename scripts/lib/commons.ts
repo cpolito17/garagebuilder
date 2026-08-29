@@ -45,12 +45,81 @@ const REJECT_TITLE = [
   'lego', 'assembly', 'factory', 'production line',
 ];
 
-/** Angles worth having, in descending preference. */
+/**
+ * Cars that are not the car the catalog describes.
+ *
+ * A modified, liveried or service-bodied example is a different object from
+ * the vehicle a buyer would be shopping for, so these are hard rejections
+ * rather than penalties. Rejecting too much only costs a photograph, and the
+ * typographic identity band is a designed state; showing a widebody drift car
+ * as a stock Silvia is a false statement about what the money buys.
+ */
+const REJECT_ALTERED = [
+  'modified', 'modded', 'tuning', 'tuned', 'custom', 'restomod', 'widebody',
+  'wide body', 'body kit', 'bodykit', 'stance', 'stanced', 'slammed', 'lowered',
+  'lifted', 'swap', 'swapped', 'drift', 'drifting', 'livery', 'wrapped',
+  'wrap ', 'replica', 'kit car', 'race car', 'racecar', 'rally car', 'racing',
+  'race ', 'spec miata', 'time attack', 'autocross', 'rallycross', 'nascar',
+  'police', 'polizei', 'sheriff', 'taxi', 'ambulance', 'hearse', 'fire dept',
+  'tuner', 'showcar', 'show car', 'prototype', 'concept', 'camouflage',
+  'camouflaged', 'spy', 'artcar', 'art car',
+];
+
+/**
+ * Signals that the frame is not one clean car.
+ *
+ * Penalised rather than rejected: the title is weak evidence about framing, so
+ * a heavy penalty demotes these behind anything better while still allowing
+ * one through when a vehicle has no other free photograph at all.
+ */
+const PENALTY_TITLE: [phrase: string, penalty: number][] = [
+  // A crowd, a stand, a hall. Also where most modified cars are photographed.
+  // "motor show" is absent because REJECT_TITLE's "motor" already takes it.
+  ['auto show', 40], ['autoshow', 40],
+  ['car show', 40], ['carshow', 40], ['autosalon', 40], ['salon', 30],
+  ['messe', 35], ['expo', 30], ['exposition', 30], ['iaa', 35], ['sema', 40],
+  ['geneva', 30], ['genf', 30], ['goodwood', 35], ['concours', 35],
+  ['festival', 30], ['meeting', 30], ['meet ', 30], ['rally', 25],
+  ['cars and coffee', 35], ['paddock', 35], ['grid', 30], ['pit lane', 35],
+  ['museum', 30], ['dealership', 30], ['showroom', 25],
+  // More than one car in the frame.
+  [' and ', 25], [' vs ', 35], ['versus', 35], ['lineup', 40], ['line up', 35],
+  ['group of', 40], ['row of', 40], ['pair of', 35], ['convoy', 40],
+  ['parking lot', 30], ['car park', 30], ['collection', 30], ['fleet', 35],
+  // People in the frame.
+  ['driver', 25], ['owner', 25], ['crowd', 40], ['people', 35],
+  ['presentation', 30], ['unveiling', 35], ['press', 25], ['launch', 25],
+  // Too far away, or too close.
+  ['aerial', 40], ['drone', 35], ['from above', 30], ['panorama', 35],
+  ['street scene', 35], ['traffic', 35], ['parade', 40],
+  ['detail', 35], ['close up', 35], ['closeup', 35], ['close-up', 35], ['macro', 40],
+];
+
+/**
+ * Angles worth having, in descending preference.
+ *
+ * A quarter view is the shot that shows a car's proportions, and Commons
+ * titles name it as a pair: "front right", "front left". Those score far above
+ * a bare "front", which is usually a flat head-on view.
+ */
 const PREFER_TITLE = [
-  'front', 'three-quarter', 'three quarter', '3q', 'frontal', 'side', 'profile',
+  'front right', 'front left', 'three-quarter', 'three quarter', '3 4', '3q',
+  'front three quarter', 'front', 'frontal', 'side', 'profile',
 ];
 
 const REAR_TITLE = ['rear', 'back'];
+
+/**
+ * Words that say nothing about which photograph this is: the car's own name,
+ * how it was framed, and the date. What remains is the place, the event and
+ * the occasion, which is what makes two photographs the same photograph.
+ */
+const NON_DISTINCTIVE = new Set([
+  'the', 'a', 'an', 'of', 'in', 'at', 'on', 'and', 'with', 'de', 'la', 'le',
+  'front', 'rear', 'back', 'side', 'left', 'right', 'profile', 'view', 'quarter',
+  'photo', 'image', 'picture', 'jpg', 'jpeg', 'png', 'car', 'auto', 'automobile',
+  'usa', 'us', 'uk', 'germany', 'deutschland', 'america',
+]);
 
 /** Performance variants that must be named by the catalog record to pass. */
 const EXCLUSIVE_TRIMS = [
@@ -151,6 +220,7 @@ export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { 
 
   if (!ALLOWED_EXT.some((e) => title.endsWith(e))) return { rejected: 'unsupported format' };
   for (const bad of REJECT_TITLE) if (hasPhrase(bad)) return { rejected: `title contains "${bad.trim()}"` };
+  for (const bad of REJECT_ALTERED) if (hasPhrase(bad)) return { rejected: `not a stock car ("${bad.trim()}")` };
 
   const licence = classifyLicence(info.extmetadata);
   if (!licence) return { rejected: 'licence not recognised as free' };
@@ -207,10 +277,21 @@ export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { 
   // mediocre coded shot does not outrank a strong front three-quarter view.
   if (genMatch) score += year === null ? 18 : 4;
 
+  // A quarter view is worth far more than a bare head-on shot, so the first
+  // entries are weighted heavily rather than linearly down the list.
   PREFER_TITLE.forEach((word, i) => {
-    if (hasPhrase(word)) score += 24 - i * 2;
+    if (hasPhrase(word)) score += Math.max(6, 40 - i * 4);
   });
   if (REAR_TITLE.some(hasPhrase)) score -= 20;
+
+  // Shows, crowds, several cars, and frames too far out or too close in.
+  // Penalties rather than rejections: the title is weak evidence about what is
+  // actually in the frame, so these demote rather than disqualify.
+  for (const [phrase, penalty] of PENALTY_TITLE) if (hasPhrase(phrase)) score -= penalty;
+
+  // "Tesla Model 3 & Chevy Bolt EV" is two cars. Checked against the raw
+  // title because the ampersand is gone by the time phrases are matched.
+  if (/\s&\s/.test(page.title)) score -= 30;
 
   // Prefer a natural landscape crop and a large original.
   score += aspect >= 1.3 && aspect <= 1.85 ? 12 : 4;
@@ -220,8 +301,56 @@ export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { 
 }
 
 /**
- * Pick up to `limit` files, at most one per author so a gallery is not four
- * photographs of the same car at the same meet.
+ * What is left of a title once the car's own name, the framing words and the
+ * dates are removed: the place, the event, the occasion.
+ */
+export function distinctiveTokens(title: string, v: VehicleKey): Set<string> {
+  const identity = new Set(
+    `${v.make} ${v.model} ${v.generation}`
+      .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean),
+  );
+  const words = title
+    .replace(/^File:/i, '')
+    .replace(/\.\w+$/, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .split(/\s+/);
+
+  const out = new Set<string>();
+  for (const word of words) {
+    if (word.length < 3) continue;              // initials, single digits
+    if (/^\d+$/.test(word)) continue;           // years, dates, upload ids
+    if (identity.has(word)) continue;
+    if (NON_DISTINCTIVE.has(word)) continue;
+    out.add(word);
+  }
+  return out;
+}
+
+/**
+ * Whether two files are the same photograph in all but name.
+ *
+ * Two people at the same stand upload two frames of the same car, and the
+ * existing one-per-author rule lets both through. What actually gives them
+ * away is the leftover of the title: "Tesla Model 3 Genf 2018" and "Tesla
+ * Model 3 Back Genf 2018" both reduce to the show they were taken at.
+ *
+ * Containment rather than Jaccard, because one title is often the other plus a
+ * word or two. Both sides must have something distinctive left: two titles
+ * that reduce to nothing are unknown, not identical.
+ */
+export function isNearDuplicate(a: Set<string>, b: Set<string>, threshold = 0.6): boolean {
+  if (a.size === 0 || b.size === 0) return false;
+  let shared = 0;
+  for (const token of a) if (b.has(token)) shared++;
+  return shared / Math.min(a.size, b.size) >= threshold;
+}
+
+/**
+ * Pick up to `limit` files: at most one per author, and never two that reduce
+ * to the same occasion, so a gallery is three photographs of the car rather
+ * than three angles on one afternoon at one show.
  */
 export function pickBest(pages: CommonsPage[], v: VehicleKey, limit: number): Candidate[] {
   const scored: Candidate[] = [];
@@ -234,10 +363,14 @@ export function pickBest(pages: CommonsPage[], v: VehicleKey, limit: number): Ca
 
   const out: Candidate[] = [];
   const authors = new Set<string>();
+  const taken: Set<string>[] = [];
   for (const c of scored) {
     const key = c.author.toLowerCase();
     if (key && authors.has(key)) continue;
+    const tokens = distinctiveTokens(c.page.title, v);
+    if (taken.some((t) => isNearDuplicate(tokens, t))) continue;
     authors.add(key);
+    taken.push(tokens);
     out.push(c);
     if (out.length >= limit) break;
   }
