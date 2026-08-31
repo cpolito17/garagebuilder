@@ -27,6 +27,11 @@ const EXCLUSIONS = 'scripts/image-exclusions.json';
 const MANIFEST = 'src/data/generated/images.json';
 
 const dryRun = process.argv.slice(2).includes('--dry-run');
+const reviewProgress = process.argv.slice(2).includes('--review-progress');
+const onlyIx = process.argv.slice(2).indexOf('--only');
+const requestedVehicles = onlyIx >= 0
+  ? (process.argv.slice(2)[onlyIx + 1] ?? '').split(',').map((id) => id.trim()).filter(Boolean)
+  : [];
 
 function readManifest(): ImageManifest {
   if (!existsSync(MANIFEST)) return {};
@@ -58,15 +63,18 @@ function main() {
     console.log(`  ? "${line}" — ${reason}`);
   }
 
-  if (rejections.length === 0) {
+  if (rejections.length === 0 && !reviewProgress) {
     console.log(unresolved.length > 0
       ? `\nNothing resolved. Check the spelling against public/vehicles or ${MANIFEST}.`
       : `\n${REJECTS} lists no photographs. Paste some filenames into it first.`);
     return;
   }
 
-  const vehicles = [...new Set(rejections.map((r) => r.vehicleId))].sort();
-  console.log(`Rejecting ${rejections.length} photograph(s) across ${vehicles.length} vehicle(s):\n`);
+  const vehicles = [...new Set([
+    ...rejections.map((r) => r.vehicleId),
+    ...(reviewProgress ? requestedVehicles : []),
+  ])].sort();
+  console.log(`Replacing ${rejections.length} rejected photograph(s) and filling missing slots across ${vehicles.length} vehicle(s):\n`);
   for (const id of vehicles) {
     const mine = rejections.filter((r) => r.vehicleId === id);
     const total = manifest[id]?.length ?? 0;
@@ -90,13 +98,17 @@ function main() {
   }
 
   writeFileSync(EXCLUSIONS, JSON.stringify(merged, null, 2) + '\n');
-  console.log(`\n${EXCLUSIONS} updated. Re-fetching ${vehicles.length} vehicle(s) from Commons.\n`);
+  console.log(`\n${EXCLUSIONS} updated. Re-fetching ${vehicles.length} vehicle(s) from all configured sources.\n`);
 
   // The fetcher owns downloading, licence filtering and manifest writing. Run
   // it rather than reimplementing any of that here.
   const result = spawnSync(
     process.execPath,
-    ['node_modules/vite-node/dist/cli.mjs', 'scripts/fetch-images.ts', '--force', '--replace-rejected', '--only', vehicles.join(',')],
+    [
+      'node_modules/vite-node/dist/cli.mjs', 'scripts/fetch-images.ts', '--force',
+      '--replace-rejected', ...(reviewProgress ? ['--review-progress'] : []),
+      '--only', vehicles.join(','),
+    ],
     { stdio: 'inherit' },
   );
   if (result.status !== 0) {
@@ -118,7 +130,7 @@ function main() {
     const current = after[vehicleId] ?? [];
     const added = current.filter((image) => !before.has(sourceIdentity(image.sourceUrl)));
     newCount += added.length;
-    openSlots += Math.max(0, 3 - current.length);
+    openSlots += Math.max(0, 4 - current.length);
   }
 
   if (survivors.length > 0) {

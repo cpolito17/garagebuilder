@@ -23,7 +23,7 @@ describe('replacement rounds', () => {
       ['url:https://example.com/photos/rejected'],
     );
     expect(plan.preserved.map((entry) => entry.file)).toEqual(['car-0.jpg', 'car-2.jpg']);
-    expect(plan.freeSlots).toEqual([1]);
+    expect(plan.freeSlots).toEqual([1, 3]);
   });
 
   it('rejects every source seen in the previous round as not new', () => {
@@ -40,6 +40,6 @@ describe('replacement rounds', () => {
         .map((url) => `url:${url}`),
     );
     expect(plan.preserved).toEqual([]);
-    expect(plan.freeSlots).toEqual([0, 1, 2]);
+    expect(plan.freeSlots).toEqual([0, 1, 2, 3]);
   });
 });

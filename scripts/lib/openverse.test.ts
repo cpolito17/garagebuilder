@@ -21,6 +21,7 @@ describe('Openverse fallback mapping', () => {
     expect(page).not.toBeNull();
     expect(page?.provider).toBe('openverse');
     expect(page?.imageinfo?.[0]?.descriptionurl).toBe(image.foreign_landing_url);
+    expect(page?.imageinfo?.[0]?.thumburl).toBe(image.thumbnail);
     expect(page?.imageinfo?.[0]?.extmetadata?.License?.value).toBe('cc0');
   });
 

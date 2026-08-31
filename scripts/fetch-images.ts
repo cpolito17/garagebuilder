@@ -23,12 +23,13 @@ import { CATALOG } from '../src/data/catalog';
 import type { ImageManifest, VehicleImage } from '../src/data/images';
 import imageExclusions from './image-exclusions.json';
 import {
-  buildQueries, scoreCandidate, pickBest, altTextFor, fileNameFor,
-  type CommonsPage, type VehicleKey,
+  buildQueries, pickBest, altTextFor, fileNameFor,
+  type CommonsPage, type ImageRole, type VehicleKey,
 } from './lib/commons';
 import { openversePage, type OpenverseResponse } from './lib/openverse';
 import { exclusionMatches, sourceIdentity } from './lib/source-identity';
 import { replacementPlan } from './lib/replacement-plan';
+import { decisionFor, emptyReviewProgress, type ReviewProgress } from './lib/review-state';
 
 const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
 const OPENVERSE_API = 'https://api.openverse.org/v1/images/';
@@ -46,11 +47,13 @@ const USER_AGENT =
  */
 const HERO_WIDTHS = [500, 960];
 const GALLERY_WIDTH = 960;
-const GALLERY_COUNT = 2;
+const EXTERIOR_COUNT = 3;
+const TOTAL_COUNT = 4;
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
 const replaceRejected = args.includes('--replace-rejected');
+const useReviewProgress = args.includes('--review-progress');
 const onlyIx = args.indexOf('--only');
 // A list rather than one id, so scripts/reject-images.ts can replace a whole
 // review pass in a single run instead of one process per vehicle.
@@ -74,14 +77,31 @@ async function openverseApi(query: string): Promise<CommonsPage[]> {
     extension: 'jpg,png',
     page_size: '40',
   })}`;
-  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+  const res = await fetchWithRetry(url);
   if (!res.ok) throw new Error(`Openverse API ${res.status} ${res.statusText}`);
   const json = await res.json() as OpenverseResponse;
   return (json.results ?? []).map(openversePage).filter((page): page is CommonsPage => page !== null);
 }
 
+async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
+  let last: Response | null = null;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    last = res;
+    if (res.ok || (res.status !== 429 && res.status < 500)) return res;
+    const retryAfter = Number(res.headers.get('retry-after') ?? 0);
+    await sleep(retryAfter > 0 ? retryAfter * 1000 : 600 * (attempt + 1));
+  }
+  throw new Error(`request failed after ${attempts} attempts: ${last?.status} ${last?.statusText}`);
+}
+
 async function download(url: string, dest: string): Promise<{ ok: boolean; bytes: number }> {
-  const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+  let res: Response;
+  try { res = await fetchWithRetry(url); }
+  catch (error) {
+    console.warn(`    download failed: ${(error as Error).message} (${url})`);
+    return { ok: false, bytes: 0 };
+  }
   if (!res.ok) {
     console.warn(`    download failed: ${res.status} ${res.statusText} (${url})`);
     return { ok: false, bytes: 0 };
@@ -122,6 +142,9 @@ async function main() {
   const manifest: ImageManifest = existsSync(MANIFEST)
     ? (JSON.parse(readFileSync(MANIFEST, 'utf8')) as ImageManifest)
     : {};
+  const reviewProgress: ReviewProgress = useReviewProgress && existsSync('scripts/image-review-progress.json')
+    ? JSON.parse(readFileSync('scripts/image-review-progress.json', 'utf8')) as ReviewProgress
+    : emptyReviewProgress();
 
   const targets = CATALOG.filter((v) => {
     if (only) return only.has(v.id);
@@ -129,7 +152,7 @@ async function main() {
     const missingLocalFile = installed.some((image) =>
       !existsSync(`${OUT_DIR}/${image.file}`)
       || (image.file2x !== undefined && !existsSync(`${OUT_DIR}/${image.file2x}`)));
-    return force || installed.length === 0 || missingLocalFile;
+    return force || installed.length < TOTAL_COUNT || missingLocalFile;
   });
 
   if (targets.length === 0) {
@@ -151,10 +174,23 @@ async function main() {
     // Commons-title exclusions and source-aware exclusions are both supported.
     const exclusions = (imageExclusions as Record<string, string[]>)[v.id] ?? [];
     const installed = manifest[v.id] ?? [];
-    const plan = replacementPlan(installed, exclusions, 1 + GALLERY_COUNT);
-    const preserved = replaceRejected ? plan.preserved : [];
+    const plan = replacementPlan(installed, exclusions, TOTAL_COUNT);
+    const allInstalledFilesExist = installed.every((image) =>
+      existsSync(`${OUT_DIR}/${image.file}`)
+      && (image.file2x === undefined || existsSync(`${OUT_DIR}/${image.file2x}`)));
+    const preserveInstalled = replaceRejected || (!force && installed.length > 0 && allInstalledFilesExist);
+    const preserved = preserveInstalled ? plan.preserved : [];
     const previousIdentities = plan.previousIdentities;
-    const needed = Math.max(0, 1 + GALLERY_COUNT - preserved.length);
+    const preservedEntries = preserved.map((image) => {
+      const originalIndex = installed.indexOf(image);
+      const decision = decisionFor(reviewProgress, v.id, image, originalIndex);
+      return { image, role: decision === 'interior' ? 'interior' as const : 'exterior' as const, hero: decision === 'hero' };
+    });
+    const preservedExterior = preservedEntries.filter((entry) => entry.role === 'exterior');
+    const preservedInterior = preservedEntries.filter((entry) => entry.role === 'interior');
+    const neededExterior = Math.max(0, EXTERIOR_COUNT - preservedExterior.length);
+    const neededInterior = Math.max(0, 1 - preservedInterior.length);
+    const needed = neededExterior + neededInterior;
 
     const eligiblePages = (pages: CommonsPage[]) =>
       pages.filter((page) => {
@@ -164,85 +200,60 @@ async function main() {
         return !replaceRejected || !previousIdentities.has(sourceIdentity(info.descriptionurl));
       });
 
-    const pagesById = new Map<string, CommonsPage>();
-    for (const query of buildQueries(key)) {
-      if (needed === 0) break;
-      try {
-        const json = await commonsApi({
-          action: 'query',
-          generator: 'search',
-          gsrsearch: query,
-          gsrnamespace: '6',
-          gsrlimit: '40',
-          prop: 'imageinfo',
-          iiprop: 'url|size|extmetadata',
-          iiurlwidth: String(HERO_WIDTHS[1]),
-        });
-        for (const page of Object.values(json.query?.pages ?? {})) {
-          page.provider = 'commons';
-          pagesById.set(`commons:${page.pageid}`, page);
-        }
-        if (pickBest(eligiblePages([...pagesById.values()]), key, needed).length >= needed) break;
-        await sleep(250);
-      } catch (err) {
-        console.log(`  ${v.id}: Commons query failed (${(err as Error).message})`);
-        await sleep(1200);
-      }
-    }
-
-    // Openverse broadens discovery beyond Commons. Only CC0/public-domain
-    // non-Wikimedia results are admitted so the untouched site's credit copy
-    // remains truthful.
-    if (pickBest(eligiblePages([...pagesById.values()]), key, needed).length < needed) {
-      for (const query of buildQueries(key)) {
+    const searchRole = async (role: ImageRole, count: number) => {
+      const pagesById = new Map<string, CommonsPage>();
+      if (count === 0) return [];
+      for (const query of buildQueries(key, role)) {
         try {
-          for (const page of await openverseApi(query)) {
-            pagesById.set(String(page.pageid), page);
-          }
-          if (pickBest(eligiblePages([...pagesById.values()]), key, needed).length >= needed) break;
+          const json = await commonsApi({ action: 'query', generator: 'search', gsrsearch: query, gsrnamespace: '6', gsrlimit: '40', prop: 'imageinfo', iiprop: 'url|size|extmetadata', iiurlwidth: String(HERO_WIDTHS[1]) });
+          for (const page of Object.values(json.query?.pages ?? {})) { page.provider = 'commons'; pagesById.set(`commons:${page.pageid}`, page); }
+          if (pickBest(eligiblePages([...pagesById.values()]), key, count, role).length >= count) break;
           await sleep(250);
-        } catch (err) {
-          console.log(`  ${v.id}: Openverse query failed (${(err as Error).message})`);
-          await sleep(1200);
+        } catch (err) { console.log(`  ${v.id}: Commons ${role} query failed (${(err as Error).message})`); await sleep(1200); }
+      }
+      if (pickBest(eligiblePages([...pagesById.values()]), key, count, role).length < count) {
+        for (const query of buildQueries(key, role)) {
+          try {
+            for (const page of await openverseApi(query)) pagesById.set(String(page.pageid), page);
+            if (pickBest(eligiblePages([...pagesById.values()]), key, count, role).length >= count) break;
+            await sleep(250);
+          } catch (err) { console.log(`  ${v.id}: Openverse ${role} query failed (${(err as Error).message})`); await sleep(1200); }
         }
       }
-    }
+      return pickBest(eligiblePages([...pagesById.values()]), key, count, role);
+    };
 
-    const pages = eligiblePages([...pagesById.values()]);
-
-    const picked = pickBest(pages, key, needed);
+    const pickedExterior = await searchRole('exterior', neededExterior);
+    const selectedIds = new Set(pickedExterior.map((candidate) => sourceIdentity(candidate.page.imageinfo![0]!.descriptionurl)));
+    const pickedInterior = (await searchRole('interior', neededInterior))
+      .filter((candidate) => !selectedIds.has(sourceIdentity(candidate.page.imageinfo![0]!.descriptionurl)))
+      .slice(0, neededInterior);
+    const picked = [
+      ...pickedExterior.map((candidate) => ({ candidate, role: 'exterior' as const })),
+      ...pickedInterior.map((candidate) => ({ candidate, role: 'interior' as const })),
+    ];
     if (picked.length === 0 && needed > 0) {
-      const reasons = new Map<string, number>();
-      for (const page of pages) {
-        const result = scoreCandidate(page, key);
-        if ('rejected' in result) reasons.set(result.rejected, (reasons.get(result.rejected) ?? 0) + 1);
-      }
-      const summary = [...reasons.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3)
-        .map(([reason, count]) => `${reason}: ${count}`)
-        .join('; ');
-      console.log(`  ${v.id}: no new free, in-generation photo found among ${pages.length} results${summary ? ` (${summary})` : ''}`);
+      console.log(`  ${v.id}: no new free, in-generation photo found for ${neededExterior ? 'exterior' : 'interior'} slots`);
     }
 
     const freeSlots = replaceRejected
       ? plan.freeSlots
-      : Array.from({ length: 1 + GALLERY_COUNT }, (_, index) => index);
-    const images: VehicleImage[] = [...preserved];
+      : Array.from({ length: TOTAL_COUNT }, (_, index) => index);
+    const newEntries: { image: VehicleImage; role: ImageRole; hero: boolean }[] = [];
 
     for (let pickIndex = 0; pickIndex < picked.length; pickIndex++) {
-      const c = picked[pickIndex]!;
+      const { candidate: c, role } = picked[pickIndex]!;
       const info = c.page.imageinfo![0]!;
       const slot = freeSlots[pickIndex];
       if (slot === undefined) break;
 
-      const isHero = slot === 0;
+      const isHero = role === 'exterior' && !preservedEntries.some((entry) => entry.hero) && !newEntries.some((entry) => entry.hero);
       const isOpenverse = c.page.provider === 'openverse';
       const width = isOpenverse ? info.width : (isHero ? HERO_WIDTHS[0]! : GALLERY_WIDTH);
       const height = isOpenverse ? info.height : Math.round((info.height / info.width) * width);
       const file = fileNameFor(key, slot, c.page.title);
       const src = isOpenverse
-        ? info.url
+        ? (info.thumburl ?? info.url)
         : info.thumburl
           ? thumbAt(info.thumburl, HERO_WIDTHS[1]!, width)
           : null;
@@ -270,11 +281,19 @@ async function main() {
         if (r2.ok) image.file2x = file2x;
       }
 
-      images.push(image);
+      newEntries.push({ image, role, hero: isHero });
       await sleep(250);
     }
 
-    images.sort((a, b) => a.file.localeCompare(b.file, undefined, { numeric: true }));
+    const entries = [...preservedEntries, ...newEntries];
+    const hero = entries.find((entry) => entry.role === 'exterior' && entry.hero)
+      ?? entries.find((entry) => entry.role === 'exterior');
+    const interior = entries.find((entry) => entry.role === 'interior');
+    const images = [
+      ...(hero ? [hero.image] : []),
+      ...entries.filter((entry) => entry.role === 'exterior' && entry !== hero).map((entry) => entry.image),
+      ...(interior ? [interior.image] : []),
+    ].slice(0, TOTAL_COUNT);
     const keptFiles = new Set(images.flatMap((image) =>
       image.file2x ? [image.file, image.file2x] : [image.file]));
     for (const previous of installed) {
@@ -292,7 +311,7 @@ async function main() {
       manifest[v.id] = images;
       const added = images.filter((image) => !previousIdentities.has(sourceIdentity(image.sourceUrl))).length;
       if (added > 0) found++;
-      if (images.length < 1 + GALLERY_COUNT) missed++;
+      if (images.length < TOTAL_COUNT) missed++;
       console.log(`  ${v.id}: ${images.length} image(s), ${added} new, hero by ${images[0]!.author || 'unknown'} (${images[0]!.licence})`);
     }
 

@@ -1,373 +1,151 @@
-/**
- * Review vehicle photography by eye, quickly.
- *
- *   npm run images:review        then open http://127.0.0.1:4180
- *
- * Shows one photograph at a time. Keep it or reject it, and when you have
- * judged a batch, hit Apply: the rejects are recorded permanently in
- * scripts/image-exclusions.json, the affected vehicles are re-fetched from
- * Commons, and the replacements come back into the queue for review. Repeat
- * until the queue is empty, which is the definition of every photograph
- * approved.
- *
- * Approvals are keyed by vehicle plus stable source identity, never by local
- * filename. A re-fetch reuses the same filenames for different photographs,
- * so a filename-keyed approval would silently bless a photograph nobody
- * looked at. Vehicle scoping prevents the same source from blessing a wrong
- * generation or trim.
- *
- * Plain node with no dependencies, and it binds to loopback only: this is a
- * local review tool, not a service.
- */
+/** Local, resumable contact-sheet reviewer. Run: npm run images:review */
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, existsSync, createReadStream, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { extname } from 'node:path';
 import { confinedPath } from './lib/confined-path.ts';
-import { approvalKey } from './lib/source-identity.ts';
+import { approvalKey, sourceIdentity } from './lib/source-identity.ts';
+import { completeVehicle, decisionFor, emptyReviewProgress, orderedKeptImages, reviewStats, setDecision } from './lib/review-state.ts';
 
 const PORT = Number(process.env.PORT ?? 4180);
 const MANIFEST = 'src/data/generated/images.json';
+const PROGRESS = 'scripts/image-review-progress.json';
 const APPROVALS = 'scripts/image-approvals.json';
 const REJECTS = 'scripts/image-rejects.txt';
 const CATALOG = 'src/data/generated/catalog.slim.json';
 const DIR = 'public/vehicles';
 
-const readJson = (path, fallback) =>
-  existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback;
+const readJson = (path, fallback) => existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : fallback;
+const writeJson = (path, value) => writeFileSync(path, JSON.stringify(value, null, 2) + '\n');
+const readProgress = () => readJson(PROGRESS, emptyReviewProgress());
+const saveProgress = (progress) => writeJson(PROGRESS, progress);
 
-/** Vehicle names, so a card says what the photograph is meant to be of. */
 function vehicleNames() {
   const names = new Map();
   const slim = readJson(CATALOG, null);
   if (!slim?.d || !Array.isArray(slim.r)) return names;
   for (const row of slim.r) {
     const [id, makeIdx, modelIdx, genIdx, y0, y1] = row;
-    names.set(id, {
-      name: `${slim.d.make[makeIdx]} ${slim.d.model[modelIdx]}`,
-      detail: `${slim.d.generation[genIdx]}, ${y0}-${y1}`,
-    });
+    names.set(id, { name: `${slim.d.make[makeIdx]} ${slim.d.model[modelIdx]}`, detail: `${slim.d.generation[genIdx]}, ${y0}-${y1}` });
   }
   return names;
 }
 
-/** Everything in the manifest that has not been judged yet. */
-function buildQueue() {
+function buildReview() {
   const manifest = readJson(MANIFEST, {});
-  const approved = new Set(readJson(APPROVALS, []));
-  const pending = new Set(
-    (existsSync(REJECTS) ? readFileSync(REJECTS, 'utf8') : '')
-      .split(/\r?\n/).map((l) => l.replace(/#.*$/, '').trim()).filter(Boolean),
-  );
+  const progress = readProgress();
   const names = vehicleNames();
+  const vehicles = Object.entries(manifest).map(([vehicleId, images]) => ({
+    vehicleId,
+    ...(names.get(vehicleId) ?? { name: vehicleId, detail: '' }),
+    completed: progress.vehicles[vehicleId]?.completed ?? false,
+    images: images.map((image, index) => ({ ...image, identity: sourceIdentity(image.sourceUrl), decision: decisionFor(progress, vehicleId, image, index) })),
+  }));
+  return { vehicles, stats: reviewStats(manifest, progress) };
+}
 
-  const queue = [];
-  let approvedCount = 0;
+function applyReviewChoices() {
+  const manifest = readJson(MANIFEST, {});
+  const progress = readProgress();
+  const approved = new Set(readJson(APPROVALS, []));
+  const rejectedFiles = [];
+  const affected = new Set();
   for (const [vehicleId, images] of Object.entries(manifest)) {
-    for (const image of images) {
-      const key = approvalKey(vehicleId, image.sourceUrl);
-      if (approved.has(key)) { approvedCount++; continue; }
-      if (pending.has(image.file)) continue;         // already rejected, awaiting Apply
-      queue.push({
-        vehicleId,
-        file: image.file,
-        key,
-        licence: image.licence,
-        author: image.author,
-        sourceUrl: image.sourceUrl,
-        hero: images[0]?.file === image.file,
-        ...(names.get(vehicleId) ?? { name: vehicleId, detail: '' }),
-      });
-    }
+    if (!progress.vehicles[vehicleId]?.completed) continue;
+    let hasReject = false;
+    images.forEach((image, index) => {
+      const decision = decisionFor(progress, vehicleId, image, index);
+      if (decision === 'reject') { rejectedFiles.push(image.file); hasReject = true; }
+      else approved.add(approvalKey(vehicleId, image.sourceUrl));
+    });
+    const ordered = orderedKeptImages(manifest, progress, vehicleId);
+    if (ordered.length < 4 || ordered.length !== images.length) affected.add(vehicleId);
+    // Keep rejected entries in place until reject-images.ts has resolved their
+    // stable source identities and made the exclusions permanent.
+    if (!hasReject) manifest[vehicleId] = ordered;
   }
-  return { queue, approvedCount, pendingRejects: pending.size };
-}
-
-function recordApproval(key) {
-  if (!key) return;
-  const approved = readJson(APPROVALS, []);
-  if (approved.includes(key)) return;
-  approved.push(key);
-  approved.sort();
-  writeFileSync(APPROVALS, JSON.stringify(approved, null, 2) + '\n');
-}
-
-function recordRejection(file) {
-  const existing = existsSync(REJECTS) ? readFileSync(REJECTS, 'utf8') : '';
-  const lines = existing.split(/\r?\n/).map((l) => l.replace(/#.*$/, '').trim());
-  if (lines.includes(file)) return;
-  writeFileSync(REJECTS, existing.replace(/\s*$/, '') + `\n${file}\n`);
-}
-
-function undo(entry) {
-  if (entry.verdict === 'keep' && entry.key) {
-    const approved = readJson(APPROVALS, []).filter((t) => t !== entry.key);
-    writeFileSync(APPROVALS, JSON.stringify(approved, null, 2) + '\n');
-  }
-  if (entry.verdict === 'reject') {
-    const kept = readFileSync(REJECTS, 'utf8')
-      .split(/\r?\n/)
-      .filter((l) => l.replace(/#.*$/, '').trim() !== entry.file);
-    writeFileSync(REJECTS, kept.join('\n'));
-  }
+  writeJson(MANIFEST, manifest);
+  writeJson(APPROVALS, [...approved].sort());
+  const header = existsSync(REJECTS)
+    ? readFileSync(REJECTS, 'utf8').split(/\r?\n/).filter((line) => line.trim().startsWith('#') || line.trim() === '')
+    : ['# Generated by the contact-sheet reviewer.'];
+  writeFileSync(REJECTS, [...header, ...rejectedFiles].join('\n').replace(/\n+$/, '') + '\n');
+  return { affected: [...affected].sort(), rejected: rejectedFiles.length };
 }
 
 const send = (res, status, body, type = 'application/json') => {
   res.writeHead(status, { 'content-type': type, 'cache-control': 'no-store' });
   res.end(typeof body === 'string' ? body : JSON.stringify(body));
 };
-
 const readBody = (req) => new Promise((resolve) => {
   let raw = '';
-  req.on('data', (c) => { raw += c; if (raw.length > 1e6) req.destroy(); });
+  req.on('data', (chunk) => { raw += chunk; if (raw.length > 1e6) req.destroy(); });
   req.on('end', () => { try { resolve(JSON.parse(raw || '{}')); } catch { resolve({}); } });
 });
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
-
   if (url.pathname === '/') return send(res, 200, PAGE, 'text/html; charset=utf-8');
-
   if (url.pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
-
-  if (url.pathname === '/api/queue') return send(res, 200, buildQueue());
-
-  if (url.pathname === '/api/verdict' && req.method === 'POST') {
-    const { file, key, verdict } = await readBody(req);
-    if (verdict === 'keep') recordApproval(key);
-    else if (verdict === 'reject') recordRejection(file);
-    else return send(res, 400, { error: 'verdict must be keep or reject' });
+  if (url.pathname === '/api/review') return send(res, 200, buildReview());
+  if (url.pathname === '/api/decision' && req.method === 'POST') {
+    const { vehicleId, sourceUrl, decision } = await readBody(req);
+    if (!vehicleId || !sourceUrl || !['keep', 'reject', 'hero', 'interior'].includes(decision)) return send(res, 400, { error: 'invalid decision' });
+    saveProgress(setDecision(readProgress(), vehicleId, sourceUrl, decision));
     return send(res, 200, { ok: true });
   }
-
-  if (url.pathname === '/api/undo' && req.method === 'POST') {
-    undo(await readBody(req));
+  if (url.pathname === '/api/complete' && req.method === 'POST') {
+    const { vehicleId } = await readBody(req);
+    if (!vehicleId) return send(res, 400, { error: 'vehicleId required' });
+    saveProgress(completeVehicle(readProgress(), vehicleId));
     return send(res, 200, { ok: true });
   }
-
-  // Apply hands off to the reject tool, which owns exclusions and re-fetching.
   if ((url.pathname === '/api/next-round' || url.pathname === '/api/apply') && req.method === 'POST') {
+    const { affected, rejected } = applyReviewChoices();
     res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
-    const child = spawn('npm', ['run', 'images:reject'], { shell: process.platform === 'win32' });
-    child.stdout.on('data', (d) => res.write(d));
-    child.stderr.on('data', (d) => res.write(d));
+    if (affected.length === 0) return res.end('Choices saved. All four image slots are filled and no replacements are needed.\n');
+    res.write(`Saved choices. Fetching ${affected.length} vehicle(s); ${rejected} rejected image(s).\n`);
+    const child = spawn(process.execPath, ['node_modules/vite-node/dist/cli.mjs', 'scripts/reject-images.ts', '--review-progress', '--only', affected.join(',')]);
+    child.stdout.on('data', (data) => res.write(data));
+    child.stderr.on('data', (data) => res.write(data));
     child.on('close', (code) => {
-      // The list is spent once its rejections are permanent in the exclusions.
-      if (code === 0 && existsSync(REJECTS)) {
-        const header = readFileSync(REJECTS, 'utf8').split(/\r?\n/)
-          .filter((l) => l.trim().startsWith('#') || l.trim() === '');
-        writeFileSync(REJECTS, header.join('\n').replace(/\n+$/, '\n'));
+      if (code === 0) {
+        const header = existsSync(REJECTS)
+          ? readFileSync(REJECTS, 'utf8').split(/\r?\n/).filter((line) => line.trim().startsWith('#') || line.trim() === '')
+          : [];
+        writeFileSync(REJECTS, header.join('\n').replace(/\n+$/, '') + '\n');
+        let progress = readProgress();
+        for (const vehicleId of affected) {
+          const current = progress.vehicles[vehicleId] ?? { decisions: {} };
+          progress = { ...progress, vehicles: { ...progress.vehicles, [vehicleId]: { ...current, completed: false } } };
+        }
+        saveProgress(progress);
       }
-      res.end(`\n--- re-fetch finished with code ${code} ---\n`);
+      res.end(`\n--- next round finished with code ${code} ---\n`);
     });
-    child.on('error', (e) => res.end(`\nCould not run npm: ${e.message}\n`));
+    child.on('error', (error) => res.end(`\nCould not start the image fetcher: ${error.message}\n`));
     return;
   }
-
   if (url.pathname.startsWith('/vehicles/')) {
-    // Confined to the image directory: a review tool should not be a way to
-    // read the rest of the disk, however local it is.
     const name = decodeURIComponent(url.pathname.slice('/vehicles/'.length));
     const path = confinedPath(DIR, name);
-    if (!path || !existsSync(path) || !statSync(path).isFile()) {
-      return send(res, 404, { error: 'not found' });
-    }
+    if (!path || !existsSync(path) || !statSync(path).isFile()) return send(res, 404, { error: 'not found' });
     const type = { '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png' }[extname(path).toLowerCase()];
     if (!type) return send(res, 415, { error: 'not an image' });
     res.writeHead(200, { 'content-type': type, 'cache-control': 'no-store' });
     return createReadStream(path).pipe(res);
   }
-
   send(res, 404, { error: 'not found' });
 });
 
-const PAGE = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Photo review</title>
-<style>
-  :root { color-scheme: dark; --bg:#0b0b0d; --card:#161619; --line:#2a2a30; --text:#fafafa; --dim:#8b8b93; --keep:#3fbf7f; --reject:#f97066; }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.45 system-ui, sans-serif;
-         min-height:100vh; display:flex; flex-direction:column; align-items:center; gap:12px; padding:16px; }
-  header { display:flex; gap:16px; align-items:baseline; width:min(900px,100%); }
-  h1 { font-size:15px; margin:0; font-weight:600; }
-  .count { color:var(--dim); font-variant-numeric:tabular-nums; margin-left:auto; }
-  .card { width:min(900px,100%); background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  .frame { position:relative; background:#000; aspect-ratio:16/10; display:grid; place-items:center; }
-  .frame img { width:100%; height:100%; object-fit:contain; touch-action:pan-y; user-select:none; -webkit-user-drag:none; }
-  .stamp { position:absolute; top:14px; padding:6px 14px; border-radius:999px; font-weight:700; font-size:20px;
-           border:3px solid; opacity:0; transition:opacity .08s; pointer-events:none; }
-  .stamp.keep { right:14px; color:var(--keep); border-color:var(--keep); transform:rotate(8deg); }
-  .stamp.reject { left:14px; color:var(--reject); border-color:var(--reject); transform:rotate(-8deg); }
-  .meta { padding:12px 14px; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap; }
-  .name { font-weight:600; }
-  .dim { color:var(--dim); font-size:13px; }
-  .dim a { color:var(--dim); }
-  .row { display:flex; gap:10px; width:min(900px,100%); }
-  button { flex:1; min-height:52px; border-radius:12px; border:1px solid var(--line); background:#1e1e24;
-           color:var(--text); font-size:15px; font-weight:600; cursor:pointer; }
-  button.reject { border-color:var(--reject); color:var(--reject); }
-  button.keep { border-color:var(--keep); color:var(--keep); }
-  button.ghost { flex:0 0 auto; padding:0 16px; font-weight:400; color:var(--dim); }
-  button:disabled { opacity:.4; cursor:default; }
-  pre { width:min(900px,100%); background:#000; border:1px solid var(--line); border-radius:12px; padding:12px;
-        white-space:pre-wrap; font-size:12px; max-height:40vh; overflow:auto; margin:0; }
-  .done { text-align:center; padding:32px 20px; }
-  .stats { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:22px auto; max-width:420px; }
-  .stats div { border:1px solid var(--line); border-radius:12px; padding:18px; display:grid; gap:4px; }
-  .stats strong { font-size:36px; font-variant-numeric:tabular-nums; }
-  .stats span { color:var(--dim); font-size:13px; text-transform:uppercase; letter-spacing:.08em; }
-</style></head>
-<body>
-<header>
-  <h1>Photo review</h1>
-  <span class="dim">&larr; reject &nbsp; &rarr; keep &nbsp; backspace undo</span>
-  <span class="count" id="count"></span>
-</header>
-<div id="app"></div>
-<pre id="log" hidden></pre>
-<script>
-const app = document.getElementById('app');
-const countEl = document.getElementById('count');
-const logEl = document.getElementById('log');
-let queue = [], i = 0, history = [], approved = 0, pending = 0, busy = false;
-let roundApproved = 0, roundRejected = 0;
-
-async function load(resetRound = false) {
-  const r = await fetch('/api/queue').then((r) => r.json());
-  queue = r.queue; approved = r.approvedCount; pending = r.pendingRejects; i = 0; history = [];
-  if (resetRound) { roundApproved = 0; roundRejected = r.pendingRejects; }
-  render();
-}
-
-function render() {
-  countEl.textContent = queue.length
-    ? (i + 1) + ' of ' + queue.length + ' to judge \\u00b7 ' + approved + ' approved \\u00b7 ' + pending + ' to replace'
-    : approved + ' approved \\u00b7 ' + pending + ' to replace';
-
-  if (i >= queue.length) {
-    app.innerHTML = '<div class="card done">' +
-      '<p><b>Round complete</b></p>' +
-      '<div class="stats"><div><strong>' + roundApproved + '</strong><span>Approved</span></div>' +
-      '<div><strong>' + roundRejected + '</strong><span>Rejected</span></div></div>' +
-      (pending > 0
-        ? '<p class="dim">The next round permanently excludes every rejection, keeps approved slots untouched, and searches Commons plus the safe Openverse fallback for genuinely new replacements.</p>'
-        : '<p class="dim">Every photograph currently in the manifest is approved.</p>') +
-      '</div>' +
-      '<div class="row" style="margin-top:10px">' +
-        (pending > 0 ? '<button class="keep" id="next">Start next round (' + pending + ' replacement' + (pending === 1 ? '' : 's') + ')</button>' : '') +
-        '<button class="ghost" id="reload">Reload</button>' +
-      '</div>';
-    const next = document.getElementById('next');
-    if (next) next.onclick = startNextRound;
-    document.getElementById('reload').onclick = () => load(false);
-    return;
-  }
-
-  const i0 = queue[i];
-  app.innerHTML =
-    '<div class="card">' +
-      '<div class="frame">' +
-        '<img id="shot" src="/vehicles/' + encodeURIComponent(i0.file) + '" alt="">' +
-        '<span class="stamp keep" id="sk">KEEP</span><span class="stamp reject" id="sr">REPLACE</span>' +
-      '</div>' +
-      '<div class="meta">' +
-        '<span class="name">' + esc(i0.name) + '</span>' +
-        '<span class="dim">' + esc(i0.detail) + (i0.hero ? ' \\u00b7 hero' : '') + '</span>' +
-        '<span class="dim" style="margin-left:auto">' + esc(i0.file) + ' \\u00b7 ' + esc(i0.licence) +
-          (i0.sourceUrl ? ' \\u00b7 <a href="' + esc(i0.sourceUrl) + '" target="_blank" rel="noreferrer">source</a>' : '') +
-        '</span>' +
-      '</div>' +
-    '</div>' +
-    '<div class="row" style="margin-top:10px">' +
-      '<button class="reject" id="no">&larr; Replace</button>' +
-      '<button class="ghost" id="undo"' + (history.length ? '' : ' disabled') + '>Undo</button>' +
-      '<button class="keep" id="yes">Keep &rarr;</button>' +
-    '</div>';
-
-  document.getElementById('no').onclick = () => judge('reject');
-  document.getElementById('yes').onclick = () => judge('keep');
-  document.getElementById('undo').onclick = undo;
-  swipe(document.getElementById('shot'));
-}
-
-function esc(s) { return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
-
-async function judge(verdict) {
-  if (busy || i >= queue.length) return;
-  busy = true;
-  const item = queue[i];
-  await fetch('/api/verdict', { method:'POST', headers:{'content-type':'application/json'},
-    body: JSON.stringify({ file:item.file, key:item.key, verdict }) });
-  history.push({ ...item, verdict });
-  if (verdict === 'keep') { approved++; roundApproved++; }
-  else { pending++; roundRejected++; }
-  i++; busy = false; render();
-}
-
-async function undo() {
-  const last = history.pop();
-  if (!last) return;
-  await fetch('/api/undo', { method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(last) });
-  if (last.verdict === 'keep') { approved--; roundApproved--; }
-  else { pending--; roundRejected--; }
-  i--; render();
-}
-
-async function startNextRound() {
-  logEl.hidden = false; logEl.textContent = 'Re-fetching...\\n';
-  const res = await fetch('/api/next-round', { method: 'POST' });
-  const reader = res.body.getReader(); const dec = new TextDecoder();
-  for (;;) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    logEl.textContent += dec.decode(value, { stream: true });
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-  await load(true);
-}
-
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowLeft') judge('reject');
-  else if (e.key === 'ArrowRight') judge('keep');
-  else if (e.key === 'Backspace') { e.preventDefault(); undo(); }
-});
-
-/** Drag or swipe the image itself, which is what a phone expects. */
-function swipe(el) {
-  if (!el) return;
-  let x0 = null;
-  const sk = document.getElementById('sk'), sr = document.getElementById('sr');
-  const start = (x) => { x0 = x; };
-  const move = (x) => {
-    if (x0 === null) return;
-    const dx = x - x0;
-    el.style.transform = 'translateX(' + dx + 'px) rotate(' + dx / 40 + 'deg)';
-    sk.style.opacity = dx > 40 ? Math.min(1, dx / 120) : 0;
-    sr.style.opacity = dx < -40 ? Math.min(1, -dx / 120) : 0;
-  };
-  const end = (x) => {
-    if (x0 === null) return;
-    const dx = x - x0; x0 = null;
-    el.style.transform = ''; sk.style.opacity = 0; sr.style.opacity = 0;
-    if (dx > 90) judge('keep'); else if (dx < -90) judge('reject');
-  };
-  el.addEventListener('pointerdown', (e) => { el.setPointerCapture(e.pointerId); start(e.clientX); });
-  el.addEventListener('pointermove', (e) => move(e.clientX));
-  el.addEventListener('pointerup', (e) => end(e.clientX));
-  el.addEventListener('pointercancel', () => { x0 = null; el.style.transform = ''; });
-}
-
-load(true);
-</script>
-</body></html>`;
+const PAGE = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vehicle photo review</title><style>
+:root{color-scheme:dark;--bg:#0b0b0d;--card:#17171b;--line:#33333a;--text:#fafafa;--dim:#9999a2;--red:#d84d4d;--gold:#c99a2e;--grey:#74747d;--green:#3d9c6b}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,sans-serif;padding:20px}main,header{width:min(1500px,100%);margin:auto}header{display:flex;align-items:baseline;gap:14px;margin-bottom:18px}h1,h2,p{margin:0}.count{margin-left:auto;color:var(--dim)}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:18px}.shot{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}.frame{aspect-ratio:4/3;background:#000;display:grid;place-items:center}.frame img{width:100%;height:100%;object-fit:contain}.buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;padding:10px}.buttons button,.next{border:1px solid var(--line);border-radius:8px;min-height:42px;color:#fff;background:#24242a;font-weight:700;cursor:pointer}.buttons .reject.active,.buttons .reject:hover{background:var(--red);border-color:var(--red)}.buttons .hero.active,.buttons .hero:hover{background:var(--gold);border-color:var(--gold);color:#17120a}.buttons .interior.active,.buttons .interior:hover{background:var(--grey);border-color:var(--grey)}.meta{padding:0 10px 11px;color:var(--dim);font-size:12px;overflow-wrap:anywhere}.meta a{color:#bbb}.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}.next{background:var(--green);border-color:var(--green);padding:0 24px}.done{text-align:center;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:40px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:620px;margin:24px auto}.stats div{border:1px solid var(--line);border-radius:10px;padding:18px}.stats strong{display:block;font-size:34px}.stats span{color:var(--dim)}pre{white-space:pre-wrap;text-align:left;background:#000;border-radius:10px;padding:14px;max-height:45vh;overflow:auto}@media(max-width:1000px){.grid{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){.grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr}}
+</style></head><body><header><h1>Vehicle photo review</h1><span class="count" id="count"></span></header><main id="app"></main><script>
+const app=document.getElementById('app'),count=document.getElementById('count');let data,current;const esc=(s)=>String(s??'').replace(/[&<>\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c]));async function load(){data=await fetch('/api/review').then(r=>r.json());current=data.vehicles.find(v=>!v.completed);render()}function render(){const s=data.stats;count.textContent=s.completedVehicles+' of '+s.totalVehicles+' vehicles saved';if(!current){app.innerHTML='<div class="done"><h2>Round complete</h2><div class="stats"><div><strong>'+s.approved+'</strong><span>Kept</span></div><div><strong>'+s.rejected+'</strong><span>Rejected</span></div><div><strong>'+s.totalVehicles+'</strong><span>Vehicles</span></div></div><p>Start the next round to replace rejects and fill missing interior slots.</p><div class="actions"><button class="next" id="round">Apply choices and start next round</button></div><pre id="log" hidden></pre></div>';document.getElementById('round').onclick=nextRound;return}app.innerHTML='<h2>'+esc(current.name)+'</h2><p class="count" style="margin:3px 0 0">'+esc(current.detail)+'</p><div class="grid">'+current.images.map(card).join('')+'</div><div class="actions"><button class="next" id="save">Save car and continue</button></div>';document.getElementById('save').onclick=complete;document.querySelectorAll('[data-decision]').forEach(b=>b.onclick=()=>decide(b.dataset.identity,b.dataset.decision))}function card(image){return '<article class="shot"><div class="frame"><img src="/vehicles/'+encodeURIComponent(image.file)+'" alt=""></div><div class="buttons">'+button(image,'reject','Reject')+button(image,'hero','Hero')+button(image,'interior','Interior')+'</div><div class="meta">'+esc(image.file)+(image.sourceUrl?' · <a href="'+esc(image.sourceUrl)+'" target="_blank" rel="noreferrer">source</a>':'')+'</div></article>'}function button(image,decision,label){return '<button class="'+decision+(image.decision===decision?' active':'')+'" data-identity="'+esc(image.identity)+'" data-decision="'+decision+'">'+label+'</button>'}async function decide(identity,decision){const image=current.images.find(i=>i.identity===identity);if(!image)return;const next=image.decision===decision?(decision==='reject'?'keep':decision):decision;await fetch('/api/decision',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vehicleId:current.vehicleId,sourceUrl:image.sourceUrl,decision:next})});if(next==='hero'||next==='interior')current.images.forEach(i=>{if(i.decision===next)i.decision='keep'});image.decision=next;render()}async function complete(){await fetch('/api/complete',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vehicleId:current.vehicleId})});await load()}async function nextRound(){const b=document.getElementById('round'),log=document.getElementById('log');b.disabled=true;log.hidden=false;log.textContent='Saving and fetching...\\n';const res=await fetch('/api/next-round',{method:'POST'});const reader=res.body.getReader(),dec=new TextDecoder();for(;;){const x=await reader.read();if(x.done)break;log.textContent+=dec.decode(x.value,{stream:true});log.scrollTop=log.scrollHeight}await load()}load();
+</script></body></html>`;
 
 server.listen(PORT, '127.0.0.1', () => {
-  const { queue, approvedCount } = buildQueue();
-  console.log(`Photo review on http://127.0.0.1:${PORT}`);
-  console.log(`${queue.length} to judge, ${approvedCount} already approved.`);
-  if (queue.length === 0 && approvedCount === 0) {
-    console.log(`\nNothing in ${MANIFEST}. Run "npm run images" first.`);
-  }
+  const review = buildReview();
+  console.log(`Vehicle photo review on http://127.0.0.1:${PORT}`);
+  console.log(`${review.stats.completedVehicles} of ${review.stats.totalVehicles} vehicles already saved.`);
 });
