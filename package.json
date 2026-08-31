@@ -13,6 +13,7 @@
     "audit": "node scripts/audit-runner.mjs",
     "coverage": "vite-node scripts/coverage.ts",
     "images": "npm run catalog && vite-node scripts/fetch-images.ts",
+    "images:openverse": "vite-node scripts/register-openverse.ts",
     "images:review": "npm run catalog && vite-node scripts/review-images.mjs",
     "images:reject": "npm run catalog && vite-node scripts/reject-images.ts",
     "placeholders": "vite-node scripts/dev-placeholders.ts",

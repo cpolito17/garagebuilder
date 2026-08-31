@@ -33,12 +33,23 @@ import { decisionFor, emptyReviewProgress, type ReviewProgress } from './lib/rev
 
 const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
 const OPENVERSE_API = 'https://api.openverse.org/v1/images/';
+const OPENVERSE_TOKEN_API = 'https://api.openverse.org/v1/auth_tokens/token/';
 const OUT_DIR = 'public/vehicles';
 const MANIFEST = 'src/data/generated/images.json';
 
 /** Wikimedia asks for a descriptive agent with a contact. Edit before running. */
 const USER_AGENT =
   'GarageChallenge/0.1 (https://github.com/cpolito17/garagebuilder; hobby project) node-fetch';
+
+// .env.local is gitignored. It is the safe place for optional Openverse API
+// credentials created by `npm run images:openverse -- --email you@example.com`.
+if (existsSync('.env.local')) process.loadEnvFile('.env.local');
+const OPENVERSE_CLIENT_ID = process.env.OPENVERSE_CLIENT_ID?.trim();
+const OPENVERSE_CLIENT_SECRET = process.env.OPENVERSE_CLIENT_SECRET?.trim();
+const OPENVERSE_AUTHENTICATED = Boolean(OPENVERSE_CLIENT_ID && OPENVERSE_CLIENT_SECRET);
+let openverseToken: { value: string; expiresAt: number } | null = null;
+let openverseNextRequestAt = 0;
+let openverseDisabledReason: string | null = null;
 
 /**
  * Card slots are about 400 CSS px. Wikimedia now accepts direct thumbnail
@@ -71,24 +82,74 @@ async function commonsApi(params: Record<string, string>): Promise<{ query?: { p
 }
 
 async function openverseApi(query: string): Promise<CommonsPage[]> {
+  if (openverseDisabledReason) return [];
+  if (!OPENVERSE_AUTHENTICATED) {
+    const delay = openverseNextRequestAt - Date.now();
+    if (delay > 0) await sleep(delay);
+    // Anonymous Openverse is limited to 20 requests/minute. Pace at 18/minute
+    // to leave room for clock and network jitter.
+    openverseNextRequestAt = Date.now() + 3400;
+  }
   const url = `${OPENVERSE_API}?${new URLSearchParams({
     q: query,
     license: 'cc0,pdm',
     extension: 'jpg,png',
-    page_size: '40',
+    // Openverse returns 401, not 400, when an anonymous request exceeds 20.
+    page_size: OPENVERSE_AUTHENTICATED ? '40' : '20',
   })}`;
-  const res = await fetchWithRetry(url);
-  if (!res.ok) throw new Error(`Openverse API ${res.status} ${res.statusText}`);
+  const headers: Record<string, string> = { 'User-Agent': USER_AGENT };
+  const token = await openverseAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetchWithRetry(url, 3, headers, false);
+  if (res.status === 429) {
+    const retryAfter = res.headers.get('retry-after');
+    openverseDisabledReason = `rate limit reached${retryAfter ? `; retry after ${retryAfter} seconds` : ''}`;
+    console.log(`  Openverse disabled for the rest of this run: ${openverseDisabledReason}.`);
+    if (!OPENVERSE_AUTHENTICATED) console.log('  Register once with "npm run images:openverse -- --email you@example.com" for batch fetching.');
+    return [];
+  }
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(`Openverse API ${res.status} ${res.statusText}${detail ? `: ${detail.slice(0, 180)}` : ''}`);
+  }
   const json = await res.json() as OpenverseResponse;
   return (json.results ?? []).map(openversePage).filter((page): page is CommonsPage => page !== null);
 }
 
-async function fetchWithRetry(url: string, attempts = 3): Promise<Response> {
+async function openverseAccessToken(): Promise<string | null> {
+  if (!OPENVERSE_AUTHENTICATED) return null;
+  if (openverseToken && openverseToken.expiresAt > Date.now() + 30_000) return openverseToken.value;
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: OPENVERSE_CLIENT_ID!,
+    client_secret: OPENVERSE_CLIENT_SECRET!,
+  });
+  const res = await fetch(OPENVERSE_TOKEN_API, {
+    method: 'POST',
+    headers: { 'User-Agent': USER_AGENT, 'content-type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+  if (!res.ok) throw new Error(`Openverse authentication ${res.status} ${res.statusText}`);
+  const json = await res.json() as { access_token?: string; expires_in?: number };
+  if (!json.access_token) throw new Error('Openverse authentication returned no access token');
+  openverseToken = {
+    value: json.access_token,
+    expiresAt: Date.now() + Math.max(60, json.expires_in ?? 3600) * 1000,
+  };
+  return openverseToken.value;
+}
+
+async function fetchWithRetry(
+  url: string,
+  attempts = 3,
+  headers: Record<string, string> = { 'User-Agent': USER_AGENT },
+  retryRateLimit = true,
+): Promise<Response> {
   let last: Response | null = null;
   for (let attempt = 0; attempt < attempts; attempt++) {
-    const res = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+    const res = await fetch(url, { headers });
     last = res;
-    if (res.ok || (res.status !== 429 && res.status < 500)) return res;
+    if (res.ok || (!retryRateLimit && res.status === 429) || (res.status !== 429 && res.status < 500)) return res;
     const retryAfter = Number(res.headers.get('retry-after') ?? 0);
     await sleep(retryAfter > 0 ? retryAfter * 1000 : 600 * (attempt + 1));
   }
@@ -159,6 +220,9 @@ async function main() {
     console.log('Nothing to fetch. Use --force to re-fetch.');
     return;
   }
+  console.log(OPENVERSE_AUTHENTICATED
+    ? 'Openverse: authenticated batch mode.\n'
+    : 'Openverse: anonymous mode (20 results/request, 20 requests/minute, 200/day). Only one fallback query per slot will be used.\n');
   console.log(`Fetching photography for ${targets.length} of ${CATALOG.length} vehicles.\n`);
 
   let found = 0;
@@ -211,8 +275,11 @@ async function main() {
           await sleep(250);
         } catch (err) { console.log(`  ${v.id}: Commons ${role} query failed (${(err as Error).message})`); await sleep(1200); }
       }
-      if (pickBest(eligiblePages([...pagesById.values()]), key, count, role).length < count) {
-        for (const query of buildQueries(key, role)) {
+      if (pickBest(eligiblePages([...pagesById.values()]), key, count, role).length < count && !openverseDisabledReason) {
+        const openverseQueries = OPENVERSE_AUTHENTICATED
+          ? buildQueries(key, role)
+          : buildQueries(key, role).slice(0, 1);
+        for (const query of openverseQueries) {
           try {
             for (const page of await openverseApi(query)) pagesById.set(String(page.pageid), page);
             if (pickBest(eligiblePages([...pagesById.values()]), key, count, role).length >= count) break;
