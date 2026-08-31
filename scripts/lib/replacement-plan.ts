@@ -12,7 +12,7 @@ export type ReplacementPlan = {
 export function replacementPlan(
   installed: VehicleImage[],
   exclusions: string[],
-  slotCount = 3,
+  slotCount = 4,
 ): ReplacementPlan {
   const isExcluded = (image: VehicleImage) => exclusions.some((value) =>
     exclusionMatches(value, titleFromSourceUrl(image.sourceUrl) ?? '', image.sourceUrl));

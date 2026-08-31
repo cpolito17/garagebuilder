@@ -32,6 +32,8 @@ export type VehicleKey = {
   bodyStyle: string;
 };
 
+export type ImageRole = 'exterior' | 'interior';
+
 /**
  * Files that are photographs of a part, an event, or a wreck rather than of
  * the car. Matched against the file title.
@@ -45,6 +47,14 @@ const REJECT_TITLE = [
   'junk', 'scrap', 'rust', 'graveyard', 'diagram', 'blueprint', 'drawing',
   'poster', 'brochure', 'advert', 'model car', 'toy', 'diecast', 'miniature',
   'lego', 'assembly', 'factory', 'production line',
+];
+
+const INTERIOR_TITLE = ['interior', 'dashboard', 'dash ', 'cockpit', 'cabin', 'seats', 'instrument panel'];
+const REJECT_INTERIOR_DETAIL = [
+  'engine', 'motor', 'bay', 'badge', 'emblem', 'logo', 'wheel', 'tyre', 'tire',
+  'brake', 'caliper', 'headlight', 'taillight', 'gearbox', 'transmission',
+  'chassis', 'suspension', 'exhaust', 'boot', 'trunk', 'bonnet', 'hood ',
+  'crash', 'wreck', 'accident', 'diagram', 'drawing', 'brochure', 'model car',
 ];
 
 /**
@@ -135,15 +145,16 @@ const GENERIC_MODEL_TOKENS = new Set([
   'model', 'series', 'class', 'grand', 'touring', 'cross', 'country',
 ]);
 
-export function buildQueries(v: VehicleKey): string[] {
+export function buildQueries(v: VehicleKey, role: ImageRole = 'exterior'): string[] {
   const base = `${v.make} ${v.model}`.replace(/\s+/g, ' ').trim();
+  const suffix = role === 'interior' ? ' interior' : '';
   // Search the generation first. If Commons uses a different name for it, the
   // first model year is a useful second route; the broad query is only a final
   // fallback and still has to pass the strict generation check below.
   return [...new Set([
-    `${base} ${v.generation} ${v.bodyStyle}`.replace(/\s+/g, ' ').trim(),
-    `${base} ${v.years[0]}`,
-    base,
+    `${base} ${v.generation} ${v.bodyStyle}${suffix}`.replace(/\s+/g, ' ').trim(),
+    `${base} ${v.years[0]}${suffix}`,
+    `${base}${suffix}`,
   ])];
 }
 
@@ -212,7 +223,11 @@ export type Candidate = {
   reason?: string;
 };
 
-export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { rejected: string } {
+export function scoreCandidate(
+  page: CommonsPage,
+  v: VehicleKey,
+  role: ImageRole = 'exterior',
+): Candidate | { rejected: string } {
   const info = page.imageinfo?.[0];
   if (!info) return { rejected: 'no imageinfo' };
 
@@ -221,7 +236,13 @@ export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { 
   const hasPhrase = (phrase: string) => titleWords.includes(` ${phrase.trim().replace(/\s+/g, ' ')} `);
 
   if (!ALLOWED_EXT.some((e) => title.endsWith(e))) return { rejected: 'unsupported format' };
-  for (const bad of REJECT_TITLE) if (hasPhrase(bad)) return { rejected: `title contains "${bad.trim()}"` };
+  if (role === 'exterior') {
+    for (const bad of REJECT_TITLE) if (hasPhrase(bad)) return { rejected: `title contains "${bad.trim()}"` };
+  } else if (!INTERIOR_TITLE.some(hasPhrase)) {
+    return { rejected: 'not identified as an interior' };
+  } else {
+    for (const bad of REJECT_INTERIOR_DETAIL) if (hasPhrase(bad)) return { rejected: `interior title contains "${bad.trim()}"` };
+  }
   for (const bad of REJECT_ALTERED) if (hasPhrase(bad)) return { rejected: `not a stock car ("${bad.trim()}")` };
 
   const licence = classifyLicence(info.extmetadata);
@@ -229,7 +250,7 @@ export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { 
 
   if (info.width < 800) return { rejected: 'source too small' };
   const aspect = info.width / info.height;
-  if (aspect < 1.15) return { rejected: 'not landscape enough' };
+  if (aspect < (role === 'interior' ? 0.7 : 1.15)) return { rejected: 'not landscape enough' };
 
   // The make and the model must both appear, or it is a different car.
   const exactTitleTokens = new Set(titleWords.trim().split(/\s+/));
@@ -257,6 +278,12 @@ export function scoreCandidate(page: CommonsPage, v: VehicleKey): Candidate | { 
   }
 
   let score = 0;
+
+  if (role === 'interior') {
+    INTERIOR_TITLE.forEach((word, index) => {
+      if (hasPhrase(word)) score += Math.max(12, 45 - index * 5);
+    });
+  }
 
   // Generation is the thing most likely to go wrong. A year inside the
   // generation is a strong signal; one outside it disqualifies the file. A
@@ -354,10 +381,15 @@ export function isNearDuplicate(a: Set<string>, b: Set<string>, threshold = 0.6)
  * to the same occasion, so a gallery is three photographs of the car rather
  * than three angles on one afternoon at one show.
  */
-export function pickBest(pages: CommonsPage[], v: VehicleKey, limit: number): Candidate[] {
+export function pickBest(
+  pages: CommonsPage[],
+  v: VehicleKey,
+  limit: number,
+  role: ImageRole = 'exterior',
+): Candidate[] {
   const scored: Candidate[] = [];
   for (const p of pages) {
-    const r = scoreCandidate(p, v);
+    const r = scoreCandidate(p, v, role);
     if ('rejected' in r) continue;
     scored.push(r);
   }

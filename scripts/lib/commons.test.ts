@@ -172,6 +172,25 @@ describe('candidate rejection', () => {
   });
 });
 
+describe('interior candidate selection', () => {
+  it('accepts a correctly identified cabin for the right generation', () => {
+    expect(scoreCandidate(page('File:2008 Mazda MX-5 NC interior dashboard.jpg'), nc, 'interior'))
+      .not.toHaveProperty('rejected');
+  });
+
+  it('requires an interior signal and still rejects altered cars', () => {
+    expect(scoreCandidate(page('File:2008 Mazda MX-5 NC front.jpg'), nc, 'interior'))
+      .toEqual({ rejected: 'not identified as an interior' });
+    expect(scoreCandidate(page('File:2008 Mazda MX-5 NC modified interior.jpg'), nc, 'interior'))
+      .toHaveProperty('rejected');
+  });
+
+  it('allows a portrait-oriented cabin photograph', () => {
+    expect(scoreCandidate(page('File:2008 Mazda MX-5 NC cockpit.jpg', { width: 1200, height: 1500 }), nc, 'interior'))
+      .not.toHaveProperty('rejected');
+  });
+});
+
 describe('candidate scoring', () => {
   const scoreOf = (p: CommonsPage) => {
     const r = scoreCandidate(p, nc);
