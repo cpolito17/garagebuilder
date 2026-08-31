@@ -29,13 +29,17 @@ import {
 import { openversePage, type OpenverseResponse } from './lib/openverse';
 import { exclusionMatches, sourceIdentity } from './lib/source-identity';
 import { replacementPlan } from './lib/replacement-plan';
-import { decisionFor, emptyReviewProgress, type ReviewProgress } from './lib/review-state';
+import { roleFor, emptyReviewProgress, normaliseReviewProgress, type ReviewProgress } from './lib/review-state';
 
 const COMMONS_API = 'https://commons.wikimedia.org/w/api.php';
 const OPENVERSE_API = 'https://api.openverse.org/v1/images/';
 const OPENVERSE_TOKEN_API = 'https://api.openverse.org/v1/auth_tokens/token/';
 const OUT_DIR = 'public/vehicles';
 const MANIFEST = 'src/data/generated/images.json';
+const CANDIDATES = 'scripts/image-candidates.json';
+
+type CandidatePoolImage = VehicleImage & { reviewRole: ImageRole };
+type CandidatePoolManifest = Record<string, CandidatePoolImage[]>;
 
 /** Wikimedia asks for a descriptive agent with a contact. Edit before running. */
 const USER_AGENT =
@@ -60,11 +64,15 @@ const HERO_WIDTHS = [500, 960];
 const GALLERY_WIDTH = 960;
 const EXTERIOR_COUNT = 3;
 const TOTAL_COUNT = 4;
+const CANDIDATE_EXTERIOR_COUNT = 8;
+const CANDIDATE_INTERIOR_COUNT = 4;
+const CANDIDATE_TOTAL_COUNT = CANDIDATE_EXTERIOR_COUNT + CANDIDATE_INTERIOR_COUNT;
 
 const args = process.argv.slice(2);
 const force = args.includes('--force');
 const replaceRejected = args.includes('--replace-rejected');
 const useReviewProgress = args.includes('--review-progress');
+const candidatePoolMode = args.includes('--candidate-pool');
 const onlyIx = args.indexOf('--only');
 // A list rather than one id, so scripts/reject-images.ts can replace a whole
 // review pass in a single run instead of one process per vehicle.
@@ -196,6 +204,16 @@ function thumbAt(thumburl: string, from: number, to: number): string {
   return thumburl.replace(`/${from}px-`, `/${to}px-`);
 }
 
+function candidateFileNameFor(v: VehicleKey, index: number, sourceTitle: string): string {
+  const ext = sourceTitle.toLowerCase().endsWith('.png') ? 'png' : 'jpg';
+  return `${v.id}-candidate-${index}.${ext}`;
+}
+
+function localImageExists(image: VehicleImage): boolean {
+  return existsSync(`${OUT_DIR}/${image.file}`)
+    && (image.file2x === undefined || existsSync(`${OUT_DIR}/${image.file2x}`));
+}
+
 async function main() {
   mkdirSync(OUT_DIR, { recursive: true });
   mkdirSync('src/data/generated', { recursive: true });
@@ -203,16 +221,25 @@ async function main() {
   const manifest: ImageManifest = existsSync(MANIFEST)
     ? (JSON.parse(readFileSync(MANIFEST, 'utf8')) as ImageManifest)
     : {};
+  const candidateManifest: CandidatePoolManifest = existsSync(CANDIDATES)
+    ? JSON.parse(readFileSync(CANDIDATES, 'utf8')) as CandidatePoolManifest
+    : {};
   const reviewProgress: ReviewProgress = useReviewProgress && existsSync('scripts/image-review-progress.json')
-    ? JSON.parse(readFileSync('scripts/image-review-progress.json', 'utf8')) as ReviewProgress
+    ? normaliseReviewProgress(JSON.parse(readFileSync('scripts/image-review-progress.json', 'utf8')))
     : emptyReviewProgress();
 
   const targets = CATALOG.filter((v) => {
     if (only) return only.has(v.id);
+    if (candidatePoolMode) {
+      const candidates = candidateManifest[v.id] ?? [];
+      const usable = candidates.filter(localImageExists);
+      return force
+        || usable.filter((image) => image.reviewRole === 'exterior').length < CANDIDATE_EXTERIOR_COUNT
+        || usable.filter((image) => image.reviewRole === 'interior').length < CANDIDATE_INTERIOR_COUNT;
+    }
     const installed = manifest[v.id] ?? [];
     const missingLocalFile = installed.some((image) =>
-      !existsSync(`${OUT_DIR}/${image.file}`)
-      || (image.file2x !== undefined && !existsSync(`${OUT_DIR}/${image.file2x}`)));
+      !localImageExists(image));
     return force || installed.length < TOTAL_COUNT || missingLocalFile;
   });
 
@@ -223,7 +250,7 @@ async function main() {
   console.log(OPENVERSE_AUTHENTICATED
     ? 'Openverse: authenticated batch mode.\n'
     : 'Openverse: anonymous mode (20 results/request, 20 requests/minute, 200/day). Only one fallback query per slot will be used.\n');
-  console.log(`Fetching photography for ${targets.length} of ${CATALOG.length} vehicles.\n`);
+  console.log(`${candidatePoolMode ? 'Preparing review candidates' : 'Fetching photography'} for ${targets.length} of ${CATALOG.length} vehicles.\n`);
 
   let found = 0;
   let missed = 0;
@@ -239,21 +266,45 @@ async function main() {
     const exclusions = (imageExclusions as Record<string, string[]>)[v.id] ?? [];
     const installed = manifest[v.id] ?? [];
     const plan = replacementPlan(installed, exclusions, TOTAL_COUNT);
-    const allInstalledFilesExist = installed.every((image) =>
-      existsSync(`${OUT_DIR}/${image.file}`)
-      && (image.file2x === undefined || existsSync(`${OUT_DIR}/${image.file2x}`)));
-    const preserveInstalled = replaceRejected || (!force && installed.length > 0 && allInstalledFilesExist);
-    const preserved = preserveInstalled ? plan.preserved : [];
-    const previousIdentities = plan.previousIdentities;
-    const preservedEntries = preserved.map((image) => {
-      const originalIndex = installed.indexOf(image);
-      const decision = decisionFor(reviewProgress, v.id, image, originalIndex);
-      return { image, role: decision === 'interior' ? 'interior' as const : 'exterior' as const, hero: decision === 'hero' };
-    });
+    const previousIdentities = candidatePoolMode
+      ? new Set([
+          ...(candidateManifest[v.id] ?? []).map((image) => sourceIdentity(image.sourceUrl)),
+          ...installed.map((image) => sourceIdentity(image.sourceUrl)),
+        ])
+      : plan.previousIdentities;
+
+    let preservedEntries: { image: VehicleImage; role: ImageRole; hero: boolean }[];
+    if (candidatePoolMode) {
+      const pool = (candidateManifest[v.id] ?? []).filter(localImageExists);
+      const identities = new Set(pool.map((image) => sourceIdentity(image.sourceUrl)));
+      const seeded: CandidatePoolImage[] = [...pool];
+      installed.forEach((image, index) => {
+        const identity = sourceIdentity(image.sourceUrl);
+        if (!identities.has(identity) && localImageExists(image)) {
+          seeded.push({ ...image, reviewRole: index === 3 ? 'interior' : 'exterior' });
+          identities.add(identity);
+        }
+      });
+      preservedEntries = seeded.map((image) => ({
+        image,
+        role: image.reviewRole,
+        hero: false,
+      }));
+    } else {
+      const allInstalledFilesExist = installed.every(localImageExists);
+      const preserveInstalled = replaceRejected || (!force && installed.length > 0 && allInstalledFilesExist);
+      const preserved = preserveInstalled ? plan.preserved : [];
+      preservedEntries = preserved.map((image) => {
+        const originalIndex = installed.indexOf(image);
+        const fallback = originalIndex === 0 ? 'hero' : originalIndex === 3 ? 'interior' : 'unselected';
+        const decision = roleFor(reviewProgress, v.id, image, fallback);
+        return { image, role: decision === 'interior' ? 'interior' as const : 'exterior' as const, hero: decision === 'hero' };
+      });
+    }
     const preservedExterior = preservedEntries.filter((entry) => entry.role === 'exterior');
     const preservedInterior = preservedEntries.filter((entry) => entry.role === 'interior');
-    const neededExterior = Math.max(0, EXTERIOR_COUNT - preservedExterior.length);
-    const neededInterior = Math.max(0, 1 - preservedInterior.length);
+    const neededExterior = Math.max(0, (candidatePoolMode ? CANDIDATE_EXTERIOR_COUNT : EXTERIOR_COUNT) - preservedExterior.length);
+    const neededInterior = Math.max(0, (candidatePoolMode ? CANDIDATE_INTERIOR_COUNT : 1) - preservedInterior.length);
     const needed = neededExterior + neededInterior;
 
     const eligiblePages = (pages: CommonsPage[]) =>
@@ -261,7 +312,7 @@ async function main() {
         const info = page.imageinfo?.[0];
         if (!info) return false;
         if (exclusions.some((value) => exclusionMatches(value, page.title, info.descriptionurl))) return false;
-        return !replaceRejected || !previousIdentities.has(sourceIdentity(info.descriptionurl));
+        return !(candidatePoolMode || replaceRejected) || !previousIdentities.has(sourceIdentity(info.descriptionurl));
       });
 
     const searchRole = async (role: ImageRole, count: number) => {
@@ -307,18 +358,24 @@ async function main() {
       ? plan.freeSlots
       : Array.from({ length: TOTAL_COUNT }, (_, index) => index);
     const newEntries: { image: VehicleImage; role: ImageRole; hero: boolean }[] = [];
+    let nextCandidateIndex = Math.max(-1, ...(candidateManifest[v.id] ?? []).map((image) => {
+      const match = image.file.match(/-candidate-(\d+)\.(?:jpe?g|png)$/i);
+      return match ? Number(match[1]) : -1;
+    })) + 1;
 
     for (let pickIndex = 0; pickIndex < picked.length; pickIndex++) {
       const { candidate: c, role } = picked[pickIndex]!;
       const info = c.page.imageinfo![0]!;
-      const slot = freeSlots[pickIndex];
+      const slot = candidatePoolMode ? nextCandidateIndex++ : freeSlots[pickIndex];
       if (slot === undefined) break;
 
-      const isHero = role === 'exterior' && !preservedEntries.some((entry) => entry.hero) && !newEntries.some((entry) => entry.hero);
+      const isHero = !candidatePoolMode && role === 'exterior' && !preservedEntries.some((entry) => entry.hero) && !newEntries.some((entry) => entry.hero);
       const isOpenverse = c.page.provider === 'openverse';
       const width = isOpenverse ? info.width : (isHero ? HERO_WIDTHS[0]! : GALLERY_WIDTH);
       const height = isOpenverse ? info.height : Math.round((info.height / info.width) * width);
-      const file = fileNameFor(key, slot, c.page.title);
+      const file = candidatePoolMode
+        ? candidateFileNameFor(key, slot, c.page.title)
+        : fileNameFor(key, slot, c.page.title);
       const src = isOpenverse
         ? (info.thumburl ?? info.url)
         : info.thumburl
@@ -339,7 +396,7 @@ async function main() {
         alt: altTextFor(key),
       };
 
-      if (isHero && !isOpenverse && info.thumburl) {
+      if (!candidatePoolMode && isHero && !isOpenverse && info.thumburl) {
         const file2x = file.replace(/(\.\w+)$/, '@2x$1');
         const r2 = await download(
           thumbAt(info.thumburl, HERO_WIDTHS[1]!, HERO_WIDTHS[1]!),
@@ -353,6 +410,21 @@ async function main() {
     }
 
     const entries = [...preservedEntries, ...newEntries];
+    if (candidatePoolMode) {
+      candidateManifest[v.id] = entries.slice(0, CANDIDATE_TOTAL_COUNT).map((entry) => ({
+        ...entry.image,
+        reviewRole: entry.role,
+      }));
+      writeFileSync(CANDIDATES, JSON.stringify(candidateManifest, null, 2) + '\n');
+      const exterior = candidateManifest[v.id]!.filter((image) => image.reviewRole === 'exterior').length;
+      const interior = candidateManifest[v.id]!.filter((image) => image.reviewRole === 'interior').length;
+      if (newEntries.length > 0) found++;
+      if (candidateManifest[v.id]!.length < CANDIDATE_TOTAL_COUNT) missed++;
+      console.log(`  ${v.id}: ${candidateManifest[v.id]!.length} candidates (${exterior} exterior, ${interior} interior), ${newEntries.length} new`);
+      await sleep(600);
+      continue;
+    }
+
     const hero = entries.find((entry) => entry.role === 'exterior' && entry.hero)
       ?? entries.find((entry) => entry.role === 'exterior');
     const interior = entries.find((entry) => entry.role === 'interior');
@@ -386,11 +458,17 @@ async function main() {
     await sleep(600);
   }
 
-  writeFileSync(MANIFEST, JSON.stringify(manifest, null, 0));
-  const total = Object.keys(manifest).length;
-  console.log(`\n${found} fetched, ${missed} without a usable photo. Manifest covers ${total} of ${CATALOG.length} vehicles.`);
+  if (candidatePoolMode) {
+    writeFileSync(CANDIDATES, JSON.stringify(candidateManifest, null, 2) + '\n');
+  } else {
+    writeFileSync(MANIFEST, JSON.stringify(manifest, null, 0));
+  }
+  const total = candidatePoolMode ? Object.keys(candidateManifest).length : Object.keys(manifest).length;
+  console.log(`\n${found} fetched, ${missed} incomplete. ${candidatePoolMode ? 'Candidate library' : 'Manifest'} covers ${total} of ${CATALOG.length} vehicles.`);
   if (missed > 0) {
-    console.log('Vehicles without photos render the typographic identity band, which is a designed state, not a gap.');
+    console.log(candidatePoolMode
+      ? 'Some vehicles have fewer than 12 usable candidates; every available candidate is still reviewable.'
+      : 'Vehicles without photos render the typographic identity band, which is a designed state, not a gap.');
   }
 }
 
