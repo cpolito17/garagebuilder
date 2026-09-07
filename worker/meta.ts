@@ -104,8 +104,18 @@ export function injectMeta(html: string, preview: Preview, canonicalUrl: string,
   const stripped = html
     .replace(/\s*<meta\s+name="description"[^>]*>/gi, '')
     .replace(/\s*<meta\s+property="og:[^"]*"[^>]*>/gi, '')
-    .replace(/\s*<meta\s+name="twitter:[^"]*"[^>]*>/gi, '');
+    .replace(/\s*<meta\s+name="twitter:[^"]*"[^>]*>/gi, '')
+    .replace(/\s*<link\s+rel="canonical"[^>]*>/gi, '');
 
   const description = `<meta name="description" content="${escapeAttr(preview.description)}" />`;
-  return stripped.replace('</head>', `  ${description}\n    ${tags}\n  </head>`);
+  const canonical = `<link rel="canonical" href="${escapeAttr(canonicalUrl)}" />`;
+  return stripped.replace('</head>', `  ${description}\n    ${canonical}\n    ${tags}\n  </head>`);
+}
+
+/** One crawlable origin: discard tracking/path noise and retain only a valid shared garage. */
+export function canonicalFor(requestUrl: string, stateParam: string | null, specific: boolean): string {
+  const request = new URL(requestUrl);
+  const canonical = new URL('/', request.origin);
+  if (specific && stateParam) canonical.searchParams.set('g', stateParam);
+  return canonical.toString();
 }

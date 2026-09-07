@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { previewFor, injectMeta, escapeAttr, DEFAULT_PREVIEW } from './meta';
+import { previewFor, injectMeta, escapeAttr, DEFAULT_PREVIEW, canonicalFor } from './meta';
 import { encodeGarage } from '../src/lib/urlState';
 import { initialGarage, pinSlot } from '../src/state/garage';
 
@@ -97,6 +97,12 @@ describe('meta injection', () => {
     expect(out).toContain('Three cars.');
   });
 
+  it('emits one escaped canonical link', () => {
+    const out = injectMeta(HTML, preview, 'https://example.test/?g=abc&x=1', 'https://example.test/og.png');
+    expect(out).toContain('<link rel="canonical" href="https://example.test/?g=abc&amp;x=1" />');
+    expect(out.split('rel="canonical"').length - 1).toBe(1);
+  });
+
   it('keeps the document otherwise intact', () => {
     const out = injectMeta(HTML, preview, 'https://example.test/', 'https://example.test/og.png');
     expect(out).toContain('<div id="root">');
@@ -118,5 +124,17 @@ describe('meta injection', () => {
 describe('escaping', () => {
   it('neutralises every character that can break out of an attribute', () => {
     expect(escapeAttr('&<>"\'')).toBe('&amp;&lt;&gt;&quot;&#39;');
+  });
+});
+
+describe('canonical URL', () => {
+  it('drops unknown paths and tracking parameters from the generic page', () => {
+    expect(canonicalFor('https://garagechallenge.lol/licences?utm_source=x', null, false))
+      .toBe('https://garagechallenge.lol/');
+  });
+
+  it('retains only a validated shared-garage parameter', () => {
+    expect(canonicalFor('https://garagechallenge.lol/?g=abc&x=1', 'abc', true))
+      .toBe('https://garagechallenge.lol/?g=abc');
   });
 });

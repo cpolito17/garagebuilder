@@ -1,4 +1,4 @@
-import { previewFor, injectMeta, DEFAULT_PREVIEW } from './meta';
+import { previewFor, injectMeta, DEFAULT_PREVIEW, canonicalFor } from './meta';
 import { STATE_PARAM } from '../src/lib/urlState';
 
 /**
@@ -55,6 +55,13 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+      return new Response('Method Not Allowed', {
+        status: 405,
+        headers: { allow: 'GET, HEAD', 'cache-control': 'no-store' },
+      });
+    }
+
     const redirect = apexRedirect(url);
     if (redirect) return redirect;
 
@@ -73,7 +80,7 @@ export default {
       // is a worse preview, never a broken one.
     }
 
-    const canonical = `${url.origin}${url.pathname}${url.search}`;
+    const canonical = canonicalFor(url.toString(), stateParam, preview.specific);
     const image = `${url.origin}/og-default.png`;
 
     const html = injectMeta(await asset.text(), preview, canonical, image);
