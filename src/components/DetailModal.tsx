@@ -184,7 +184,12 @@ export function DetailModal({
                             {LICENCE_URL[img.licence] && (
                               <>
                                 {' '}
-                                <a href={img.sourceUrl} target="_blank" rel="noreferrer noopener" className="underline">
+                                <a
+                                  href={img.sourceUrl}
+                                  target="_blank"
+                                  rel="noreferrer noopener"
+                                  className="inline-flex min-h-11 min-w-11 items-center justify-center px-1 underline"
+                                >
                                   source
                                 </a>
                               </>

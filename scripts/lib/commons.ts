@@ -191,6 +191,10 @@ export function normaliseArtist(html: string | undefined): string {
     .replace(/&quot;/g, '"')
     .replace(/&#0?39;/g, "'")
     .replace(/&nbsp;/g, ' ')
+    // Em and en dashes are banned in visible copy, and several Commons artists
+    // use one between a username and a real name. src/data/images.ts repeats
+    // this at display time for manifests written before this existed.
+    .replace(/[\u2014\u2013]/g, '-')
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 120);
